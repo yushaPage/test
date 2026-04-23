@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 - Page Not Found</title>
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        overflow: hidden;
+    }
+
+    .container {
+        text-align: center;
+        animation: fadeIn 1.5s ease-in-out;
+    }
+
+    h1 {
+        font-size: 120px;
+        font-weight: 600;
+        letter-spacing: 5px;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    p {
+        font-size: 20px;
+        margin: 10px 0 30px;
+        opacity: 0.9;
+    }
+
+    .btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        background: white;
+        color: #764ba2;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.3s;
+        text-decoration: none;
+    }
+
+    .btn:hover {
+        background: #ddd;
+        transform: scale(1.05);
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Responsive */
+    @media(max-width: 600px) {
+        h1 {
+            font-size: 80px;
+        }
+        p {
+            font-size: 16px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>404</h1>
+    <p>Oops! The page you're looking for doesn't exist.</p>
+</div>
+
+</body>
+</html>
