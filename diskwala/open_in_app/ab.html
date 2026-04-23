@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open in Telegram</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0e1621;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .card {
+        background: #17212b;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        width: 300px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    .logo {
+        width: 80px;
+        height: 80px;
+        background: #2aabee;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        margin: 0 auto 15px;
+    }
+
+    h2 {
+        margin: 10px 0;
+    }
+
+    p {
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    .btn {
+        display: block;
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 25px;
+        background: #2aabee;
+        color: white;
+        text-decoration: none;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+
+    .btn:hover {
+        background: #229ed9;
+    }
+
+    .small-link {
+        margin-top: 10px;
+        display: block;
+        font-size: 13px;
+        color: #888;
+        text-decoration: none;
+    }
+</style>
+
+</head>
+<body>
+
+<div class="card">
+    <div class="logo">DT</div>
+
+    <h2>Delicious TeraBox</h2>
+    <p>You are invited to join this Telegram channel</p>
+
+    <!-- Main Button (Intent Link) -->
+    <a class="btn"
+       href="intent://t.me/+hxZHjIi5msY2MDVl#Intent;scheme=https;package=org.telegram.messenger;end">
+        OPEN IN TELEGRAM
+    </a>
+
+    <!-- Fallback -->
+    <a class="small-link" href="https://t.me/+hxZHjIi5msY2MDVl">
+        Open in browser instead
+    </a>
+</div>
+
+</body>
+</html>
