@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yusha Url</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alan+Sans:wght@300..900&family=Signika:wght@300..700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      width: 100vw;
+      background-color: #151a28;
+      display: flex;
+      flex-direction: column; /* puts items side by side */
+      justify-content: center;
+      align-items: center;
+      color: white;
+      gap: 2vmin;
+    }
+    .out_text{
+      font-size: 9vmin;
+      color: #white;
+    }
+    .big_box_cont {
+      width: 85vmin;
+      padding: 1vmin;
+      border-radius: 5vmin;
+      background-color: #1b2237;
+      border: 2px solid #2a3044;
+      overflow: hidden;
+    }
+    .big_box_in_cont{
+      display: flex;
+      flex-direction: column;
+      background-color: #151a2a;
+      min-height: 15vmin;
+      width: 100%;
+      border-radius: 4vmin;
+      display: flex;
+      color: #6b738e;
+      gap: 1vmin;;
+    }
+    
+    h1{
+      font-size: 4vmin;
+      margin-left: 2vmin;
+      margin-right: 2vmin;
+      word-break: break-all;       /* breaks long URLs */
+      overflow-wrap: break-word;
+      font-family: 'Alan Sans', sans-serif;
+    }
+    img{
+      width: 6vmin;
+      height: 6vmin;
+      border: 2px solid #2a3044;
+      border-radius: 2.9vmin;
+      margin-left: 2vmin;
+      margin-bottom: 2vmin;
+      padding: 1vmin;
+    }
+    .url_text{
+      cursor: pointer;
+      color: #cad0de;
+    }
+    
+        /* POPUP */
+    .popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.35);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 3;
+    }
+.loading_txt {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  
+  z-index: 5;
+  display: none;
+  font-family: 'Alan Sans', sans-serif;
+  font-size: 5vmin;
+  color: white;
+}
+.popup iframe {
+  filter: blur(5px);
+}
+
+.popup.loaded iframe {
+  filter: blur(0);
+}
+    .popup iframe {
+      height: 70%;
+      aspect-ratio: 9/15;
+      border-radius: 2vmin;
+      border: none;
+      background: #000;
+    }
+
+    .close_btn {
+      margin-top: 3vmin;
+      padding: 1.5vmin 4vmin;
+      background: #5a4bd6;
+      color: white;
+      border: none;
+      border-radius: 2vmin;
+      font-size: 3vmin;
+      cursor: pointer;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="out_text">
+    <h1>Touch to Copy URL.</h1>
+  </div>
+  <div class="big_box_cont">
+    <div class="big_box_in_cont">
+      <h1 class="url_text" id="result">Loading...</h1>
+      <img src="video_icon.svg" id="openVideo">
+    </div>
+  </div>
+  
+   <!-- POPUP -->
+  <div class="popup" id="videoPopup">
+    <div class="loading_txt" id="loading_txt_id">Loading video...</div>
+    <iframe id="videoFrame"
+      src=""
+      allow="autoplay; encrypted-media"
+      allowfullscreen>
+    </iframe>
+    
+    <button class="close_btn" id="closePopup">✖ Close</button>
+  </div>
+  
+  
+  <script>
+  const currentUrl = "https://yushapage.github.io/test/diskwala/pageUrl/?key=69e365932b840880c4a25818ayu";
+  const urlObj = new URL(currentUrl);
+  const keyValue = urlObj.searchParams.get("key");
+  // Build new URL if key exists
+  let output;
+  if (keyValue) {
+    output = "https://www.diskwala.com/app/" + keyValue;
+  } else {
+    output = "No key found";
+  }
+  document.getElementById("result").textContent = output;
+
+
+  const urlText = document.querySelector(".url_text");
+  urlText.addEventListener("click", () => {
+    navigator.clipboard.writeText(urlText.innerText);
+  });
+  
+  
+    // VIDEO POPUP LOGIC
+  const openBtn = document.getElementById("openVideo");
+  const popup = document.getElementById("videoPopup");
+  const loading_txt = document.getElementById("loading_txt_id");
+  const closeBtn = document.getElementById("closePopup");
+  const iframe = document.getElementById("videoFrame");
+  
+  openBtn.addEventListener("click", () => {
+    popup.style.display = "flex";
+    loading_txt.style.display = "flex";
+    iframe.src = "https://www.youtube.com/embed/4a0T5Xzmvzs?autoplay=1";
+  });
+  
+  closeBtn.addEventListener("click", () => {
+    popup.style.display = "none";
+    iframe.src = ""; // stop video
+  });
+iframe.onload = () => {
+  loading_txt.style.display = "none";
+  popup.classList.add("loaded");
+};
+</script>
+</body>
+
+</html>
