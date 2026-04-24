@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yusha Url</title>
+  
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      width: 100vw;
+      background-color: #151a28;
+      display: flex;
+      flex-direction: column; /* puts items side by side */
+      justify-content: center;
+      align-items: center;
+      color: white;
+      gap: 2vmin;
+    }
+    .out_text{
+      font-size: 9vmin;
+      color: #white;
+    }
+    .big_box_cont {
+      width: 85vmin;
+      padding: 1vmin;
+      border-radius: 5vmin;
+      background-color: #1b2237;
+      border: 2px solid #2a3044;
+      overflow: hidden;
+    }
+    .big_box_in_cont{
+      display: flex;
+      flex-direction: column;
+      background-color: #151a2a;
+      min-height: 15vmin;
+      width: 100%;
+      border-radius: 4vmin;
+      display: flex;
+      color: #6b738e;
+      gap: 1vmin;;
+    }
+    h1{
+      font-size: 4vmin;
+      margin-left: 2vmin;
+      margin-right: 2vmin;
+      word-break: break-all;       /* breaks long URLs */
+      overflow-wrap: break-word; 
+    }
+    img{
+      width: 6vmin;
+      height: 6vmin;
+      border: 2px solid #2a3044;
+      border-radius: 2.9vmin;
+      margin-left: 2vmin;
+      margin-bottom: 2vmin;
+      padding: 1vmin;
+    }
+    .url_text{
+      cursor: pointer;
+      color: #cad0de;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="out_text">
+    <h1>Touch to Copy URL.</h1>
+  </div>
+  <div class="big_box_cont">
+    <div class="big_box_in_cont">
+      <h1 class="url_text">https://www.diskwala.com/app/69e365932b840880c4a25818</h1>
+      <img src="video_icon.svg">
+    </div>
+  </div>
+  
+  
+  <script>
+  const urlText = document.querySelector(".url_text");
+
+  urlText.addEventListener("click", () => {
+    navigator.clipboard.writeText(urlText.innerText);
+  });
+</script>
+</body>
+
+</html>
