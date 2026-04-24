@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Show Page URL</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    .url-box {
+      padding: 10px;
+      border: 2px solid #333;
+      display: inline-block;
+      background-color: #f9f9f9;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Current Page URL</h1>
+  <div class="url-box" id="page-url"></div>
+
+  <script>
+    // Get the current page URL
+    const currentUrl = window.location.href;
+    // Display it inside the div
+    document.getElementById("page-url").textContent = currentUrl;
+  </script>
+</body>
+</html>
