@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join Our Telegram</title>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", sans-serif;
+    }
+
+    body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #00c6ff, #0072ff);
+        overflow: hidden;
+    }
+
+    .bubble {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        animation: float 10s infinite ease-in-out;
+    }
+
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-50px); }
+        100% { transform: translateY(0px); }
+    }
+
+    .bubble:nth-child(1) {
+        width: 120px; height: 120px;
+        left: 10%; top: 20%;
+    }
+    .bubble:nth-child(2) {
+        width: 80px; height: 80px;
+        left: 70%; top: 60%;
+    }
+    .bubble:nth-child(3) {
+        width: 150px; height: 150px;
+        left: 40%; top: 75%;
+    }
+
+    .card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: fadeIn 1.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    p {
+        opacity: 0.9;
+        margin-bottom: 25px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 14px 30px;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #0088cc, #00aced);
+        transition: 0.3s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    .btn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+
+    /* SVG icon styling */
+    .icon svg {
+        width: 70px;
+        height: 70px;
+        fill: white;
+        margin-bottom: 15px;
+        transition: 0.3s;
+    }
+
+    .icon svg:hover {
+        transform: scale(1.1) rotate(5deg);
+    }
+</style>
+</head>
+
+<body>
+
+<div class="bubble"></div>
+<div class="bubble"></div>
+<div class="bubble"></div>
+
+<div class="card">
+    <div class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            <path d="M320 72C183 72 72 183 72 320C72 457 183 568 320 568C457 568 568 457 568 320C568 183 457 72 320 72zM435 240.7C431.3 279.9 415.1 375.1 406.9 419C403.4 437.6 396.6 443.8 390 444.4C375.6 445.7 364.7 434.9 350.7 425.7C328.9 411.4 316.5 402.5 295.4 388.5C270.9 372.4 286.8 363.5 300.7 349C304.4 345.2 367.8 287.5 369 282.3C369.2 281.6 369.3 279.2 367.8 277.9C366.3 276.6 364.2 277.1 362.7 277.4C360.5 277.9 325.6 300.9 258.1 346.5C248.2 353.3 239.2 356.6 231.2 356.4C222.3 356.2 205.3 351.4 192.6 347.3C177.1 342.3 164.7 339.6 165.8 331C166.4 326.5 172.5 322 184.2 317.3C256.5 285.8 304.7 265 328.8 255C397.7 226.4 412 221.4 421.3 221.2C423.4 221.2 427.9 221.7 430.9 224.1C432.9 225.8 434.1 228.2 434.4 230.8C434.9 234 435 237.3 434.8 240.6z"/>
+        </svg>
+    </div>
+
+    <h1>t.me/eo_do</h1>
+    <p>Join Our Telegram</p>
+
+    <a href="t.me/eo_do" target="_blank" class="btn">
+        Join Now
+    </a>
+</div>
+
+</body>
+</html>
