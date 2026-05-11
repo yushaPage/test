@@ -3,107 +3,110 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AES-256 Image Encryptor</title>
+<title>AES File Encryptor</title>
 
 <style>
-    body{
-        margin:0;
-        padding:20px;
-        background:#151a28;
-        color:white;
-        font-family:Arial,sans-serif;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        min-height:100vh;
-        box-sizing:border-box;
-    }
 
-    .box{
-        width:100%;
-        max-width:700px;
-        background:#1d2335;
-        border:1px solid #303955;
-        border-radius:20px;
-        padding:25px;
-        box-sizing:border-box;
-    }
+body{
+    margin:0;
+    padding:20px;
+    background:#151a28;
+    color:white;
+    font-family:Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    box-sizing:border-box;
+}
 
-    h1{
-        text-align:center;
-        margin-top:0;
-        margin-bottom:25px;
-    }
+.box{
+    width:100%;
+    max-width:700px;
+    background:#1d2335;
+    border:1px solid #303955;
+    border-radius:20px;
+    padding:25px;
+    box-sizing:border-box;
+}
 
-    .label{
-        margin-bottom:8px;
-        margin-top:18px;
-        color:#cfd3e6;
-        font-size:14px;
-    }
+h1{
+    margin-top:0;
+    text-align:center;
+    margin-bottom:25px;
+}
 
-    input{
-        width:100%;
-        box-sizing:border-box;
-        background:#151a28;
-        border:1px solid #3a4464;
-        color:white;
-        border-radius:12px;
-        padding:14px;
-        font-size:15px;
-        outline:none;
-    }
+.label{
+    margin-top:18px;
+    margin-bottom:8px;
+    color:#cfd3e6;
+    font-size:14px;
+}
 
-    .file-input{
-        padding:12px;
-    }
+input{
+    width:100%;
+    box-sizing:border-box;
+    background:#151a28;
+    border:1px solid #3c4563;
+    color:white;
+    border-radius:12px;
+    padding:14px;
+    font-size:15px;
+    outline:none;
+}
 
-    .btns{
-        display:flex;
-        gap:12px;
-        margin-top:25px;
-        flex-wrap:wrap;
-    }
+.file-input{
+    padding:12px;
+}
 
-    button{
-        flex:1;
-        min-width:180px;
-        border:none;
-        background:#5a4bd6;
-        color:white;
-        padding:14px;
-        border-radius:14px;
-        cursor:pointer;
-        font-size:15px;
-    }
+button{
+    width:100%;
+    margin-top:24px;
+    border:none;
+    background:#5a4bd6;
+    color:white;
+    padding:15px;
+    border-radius:14px;
+    cursor:pointer;
+    font-size:16px;
+}
 
-    button:hover{
-        opacity:0.92;
-    }
+button:hover{
+    opacity:0.92;
+}
 
-    .status{
-        margin-top:20px;
-        color:#9ea7c7;
-        word-break:break-word;
-    }
+.status{
+    margin-top:20px;
+    color:#aab2d3;
+    word-break:break-word;
+    font-size:14px;
+}
+
 </style>
 </head>
 <body>
 
 <div class="box">
 
-    <h1>AES-256 Image Encryptor</h1>
+    <h1>AES-256 File Encryptor</h1>
 
     <div class="label">Password</div>
-    <input type="password" id="password" placeholder="Enter secret password">
+    <input
+        type="password"
+        id="password"
+        placeholder="Enter secret password"
+    >
 
-    <div class="label">Select Image</div>
-    <input type="file" id="fileInput" class="file-input" accept="image/*">
+    <div class="label">Select Image or Video</div>
+    <input
+        type="file"
+        id="fileInput"
+        class="file-input"
+    >
 
-    <div class="btns">
-        <button onclick="encryptImage()">Encrypt & Download</button>
-        <button onclick="decryptImage()">Decrypt & Download</button>
-    </div>
+    <button onclick="encryptFile()">
+        Encrypt & Download .aes
+    </button>
 
     <div class="status" id="status"></div>
 
@@ -118,25 +121,25 @@ async function getKey(password, salt){
     const keyMaterial = await crypto.subtle.importKey(
         "raw",
         encoder.encode(password),
-        { name: "PBKDF2" },
+        { name:"PBKDF2" },
         false,
         ["deriveKey"]
     );
 
     return crypto.subtle.deriveKey(
         {
-            name: "PBKDF2",
-            salt: salt,
-            iterations: 100000,
-            hash: "SHA-256"
+            name:"PBKDF2",
+            salt:salt,
+            iterations:100000,
+            hash:"SHA-256"
         },
         keyMaterial,
         {
-            name: "AES-GCM",
-            length: 256
+            name:"AES-GCM",
+            length:256
         },
         false,
-        ["encrypt", "decrypt"]
+        ["encrypt"]
     );
 }
 
@@ -160,15 +163,18 @@ function downloadFile(data, filename){
     URL.revokeObjectURL(url);
 }
 
-async function encryptImage(){
+async function encryptFile(){
 
     try{
 
-        const file = document.getElementById("fileInput").files[0];
-        const password = document.getElementById("password").value;
+        const file =
+            document.getElementById("fileInput").files[0];
+
+        const password =
+            document.getElementById("password").value;
 
         if(!file){
-            alert("Select image file");
+            alert("Select a file");
             return;
         }
 
@@ -177,143 +183,97 @@ async function encryptImage(){
             return;
         }
 
-        document.getElementById("status").innerText =
-            "Encrypting image...";
+        const status =
+            document.getElementById("status");
 
-        const fileData = await file.arrayBuffer();
+        status.innerText = "Reading file...";
 
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const fileBuffer =
+            await file.arrayBuffer();
 
-        const key = await getKey(password, salt);
+        status.innerText = "Generating encryption key...";
 
-        const encrypted = await crypto.subtle.encrypt(
-            {
-                name:"AES-GCM",
-                iv:iv
-            },
-            key,
-            fileData
-        );
+        const salt =
+            crypto.getRandomValues(
+                new Uint8Array(16)
+            );
 
-        const nameBytes = new TextEncoder().encode(file.name);
+        const iv =
+            crypto.getRandomValues(
+                new Uint8Array(12)
+            );
 
-        const nameLength = new Uint16Array([nameBytes.length]);
+        const key =
+            await getKey(password, salt);
 
-        const combined = new Uint8Array(
-            2 +
-            nameBytes.length +
-            salt.length +
-            iv.length +
-            encrypted.byteLength
-        );
+        status.innerText = "Encrypting file...";
+
+        const encrypted =
+            await crypto.subtle.encrypt(
+                {
+                    name:"AES-GCM",
+                    iv:iv
+                },
+                key,
+                fileBuffer
+            );
+
+        const nameBytes =
+            new TextEncoder().encode(file.name);
+
+        const nameLength =
+            new Uint16Array([nameBytes.length]);
+
+        const combined =
+            new Uint8Array(
+                2 +
+                nameBytes.length +
+                16 +
+                12 +
+                encrypted.byteLength
+            );
 
         let offset = 0;
 
-        combined.set(new Uint8Array(nameLength.buffer), offset);
+        combined.set(
+            new Uint8Array(nameLength.buffer),
+            offset
+        );
+
         offset += 2;
 
         combined.set(nameBytes, offset);
+
         offset += nameBytes.length;
 
         combined.set(salt, offset);
-        offset += salt.length;
+
+        offset += 16;
 
         combined.set(iv, offset);
-        offset += iv.length;
 
-        combined.set(new Uint8Array(encrypted), offset);
+        offset += 12;
+
+        combined.set(
+            new Uint8Array(encrypted),
+            offset
+        );
+
+        status.innerText = "Preparing download...";
 
         downloadFile(
             combined,
             file.name + ".aes"
         );
 
-        document.getElementById("status").innerText =
-            "Image encrypted successfully";
+        status.innerText =
+            "File encrypted successfully";
 
     }catch(err){
 
         console.error(err);
 
         alert("Encryption failed");
-    }
-}
-
-async function decryptImage(){
-
-    try{
-
-        const file = document.getElementById("fileInput").files[0];
-        const password = document.getElementById("password").value;
-
-        if(!file){
-            alert("Select encrypted .aes file");
-            return;
-        }
-
-        if(!password){
-            alert("Enter password");
-            return;
-        }
-
-        document.getElementById("status").innerText =
-            "Decrypting image...";
-
-        const buffer = await file.arrayBuffer();
-
-        const combined = new Uint8Array(buffer);
-
-        let offset = 0;
-
-        const nameLength = new Uint16Array(
-            combined.slice(0,2).buffer
-        )[0];
-
-        offset += 2;
-
-        const nameBytes = combined.slice(
-            offset,
-            offset + nameLength
-        );
-
-        const originalName =
-            new TextDecoder().decode(nameBytes);
-
-        offset += nameLength;
-
-        const salt = combined.slice(offset, offset + 16);
-        offset += 16;
-
-        const iv = combined.slice(offset, offset + 12);
-        offset += 12;
-
-        const encryptedData = combined.slice(offset);
-
-        const key = await getKey(password, salt);
-
-        const decrypted = await crypto.subtle.decrypt(
-            {
-                name:"AES-GCM",
-                iv:iv
-            },
-            key,
-            encryptedData
-        );
-
-        downloadFile(
-            decrypted,
-            originalName
-        );
-
-        document.getElementById("status").innerText =
-            "Image decrypted successfully";
-
-    }catch(err){
-
-        console.error(err);
-
-        alert("Wrong password or invalid file");
     }
 }
 
