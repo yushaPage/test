@@ -1,109 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AES File Encryptor</title>
+  <title>Image Encrypt Decrypt</title>
+  <style>
+    body{
+      font-family:Arial;
+      padding:20px;
+    }
 
-<style>
-body{
-    margin:0;
-    padding:20px;
-    background:#151a28;
-    color:white;
-    font-family:Arial,sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:100vh;
-    box-sizing:border-box;
-}
+    img{
+      max-width:300px;
+      margin-top:20px;
+      border:1px solid #ccc;
+    }
 
-.box{
-    width:100%;
-    max-width:700px;
-    background:#1d2335;
-    border:1px solid #303955;
-    border-radius:20px;
-    padding:25px;
-}
-
-h1{
-    text-align:center;
-    margin-top:0;
-}
-
-.label{
-    margin-top:18px;
-    margin-bottom:8px;
-    color:#cfd3e6;
-    font-size:14px;
-}
-
-input{
-    width:100%;
-    box-sizing:border-box;
-    background:#151a28;
-    border:1px solid #3c4563;
-    color:white;
-    border-radius:12px;
-    padding:14px;
-    font-size:15px;
-    outline:none;
-}
-
-button{
-    width:100%;
-    margin-top:24px;
-    border:none;
-    background:#5a4bd6;
-    color:white;
-    padding:15px;
-    border-radius:14px;
-    cursor:pointer;
-    font-size:16px;
-}
-
-button:hover{
-    opacity:0.9;
-}
-
-.status{
-    margin-top:18px;
-    color:#aab2d3;
-    font-size:14px;
-    word-break:break-word;
-}
-</style>
+    button{
+      margin-top:10px;
+      padding:10px 20px;
+      cursor:pointer;
+    }
+  </style>
 </head>
 <body>
 
-<div class="box">
+<h2>Encrypt & Decrypt Image</h2>
 
-<h1>AES-256 Encryptor</h1>
+<input type="file" id="imageFile">
+<br>
 
-<div class="label">Password</div>
-<input type="password" id="password" placeholder="Enter password">
+<button onclick="encryptImage()">Encrypt Image</button>
+<button onclick="decryptImage()">Decrypt Image</button>
 
-<div class="label">Select File (Image / Video / Any)</div>
-<input type="file" id="fileInput">
-
-<button onclick="encryptFile()">Encrypt & Download .aes</button>
-
-<div class="status" id="status"></div>
-
-</div>
+<h3>Decrypted Image Preview</h3>
+<img id="preview">
 
 <script>
 
-// ---------- KEY GENERATION ----------
-async function getKey(password, salt){
+const PASSWORD = "k1GOScEK5B";
 
-    const enc = new TextEncoder();
+let savedSalt;
+let savedIV;
+
+async function getKey(password, salt) {
+
+    const encoder = new TextEncoder();
 
     const keyMaterial = await crypto.subtle.importKey(
         "raw",
-        enc.encode(password),
+        encoder.encode(password),
         { name: "PBKDF2" },
         false,
         ["deriveKey"]
@@ -122,104 +66,84 @@ async function getKey(password, salt){
             length: 256
         },
         false,
-        ["encrypt"]
+        ["encrypt", "decrypt"]
     );
 }
-
-// ---------- FIXED DOWNLOAD FUNCTION ----------
-function downloadFile(data, filename){
-
-    const blob = new Blob([data], {
-        type: "application/octet-stream"
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    URL.revokeObjectURL(url);
-}
-
-// ---------- ENCRYPT ----------
-async function encryptFile(){
-
-    try{
-
-        const file = document.getElementById("fileInput").files[0];
-        const password = document.getElementById("password").value;
-        const status = document.getElementById("status");
-
-        if(!file){
-            alert("Select a file");
+async function encryptImage() {
+        
+        const file = document.getElementById("imageFile").files[0];
+        
+        if (!file) {
+            alert("Select image first");
             return;
         }
-
-        if(!password){
-            alert("Enter password");
-            return;
-        }
-
-        status.innerText = "Reading file...";
-
-        const fileBuffer = await file.arrayBuffer();
-
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-
-        status.innerText = "Generating key...";
-
-        const key = await getKey(password, salt);
-
-        status.innerText = "Encrypting...";
-
+        
+        const data = await file.arrayBuffer();
+        
+        savedSalt = crypto.getRandomValues(new Uint8Array(16));
+        savedIV = crypto.getRandomValues(new Uint8Array(12));
+        
+        const key = await getKey(PASSWORD, savedSalt);
+        
         const encrypted = await crypto.subtle.encrypt(
             {
                 name: "AES-GCM",
-                iv: iv
+                iv: savedIV
             },
             key,
-            fileBuffer
+            data
         );
+        const blob = new Blob([encrypted]);
+   
+   const a = document.createElement("a");
+   
+   a.href = URL.createObjectURL(blob);
+   a.download = "image_file.enc";
+   a.click();
+   
+   alert("Image encrypted and downloaded");
+   }
+   
+   async function decryptImage() {
+           
+           const file = document.getElementById("imageFile").files[0];
+           
+           if (!file) {
+               alert("Select encrypted file first");
+               return;
+           }
+           const encryptedData = await file.arrayBuffer();
 
-        const nameBytes = new TextEncoder().encode(file.name);
-        const nameLen = new Uint16Array([nameBytes.length]);
+const key = await getKey(PASSWORD, savedSalt);
 
-        const combined = new Uint8Array(
-            2 + nameBytes.length + 16 + 12 + encrypted.byteLength
-        );
+try {
+    
+    const decrypted = await crypto.subtle.decrypt(
+        {
+            name: "AES-GCM",
+            iv: savedIV
+        },
+        key,
+        encryptedData
+    );
+    
+    const blob = new Blob([decrypted], {
+        type: "image/jpeg"
+    });
+    
+    const url = URL.createObjectURL(blob);
+    
+    document.getElementById("preview").src = url;
+    
+    const a = document.createElement("a");
+    a.href = url;
+        a.download = "image_file.jpg";
+        a.click();
 
-        let offset = 0;
-
-        combined.set(new Uint8Array(nameLen.buffer), offset);
-        offset += 2;
-
-        combined.set(nameBytes, offset);
-        offset += nameBytes.length;
-
-        combined.set(salt, offset);
-        offset += 16;
-
-        combined.set(iv, offset);
-        offset += 12;
-
-        combined.set(new Uint8Array(encrypted), offset);
-
-        status.innerText = "Downloading encrypted file...";
-
-        // 🔥 FIXED: clean .aes output
-        downloadFile(combined, file.name + ".aes");
-
-        status.innerText = "Done ✔ File encrypted";
-
-    }catch(err){
+    }
+    catch(err) {
+        alert("Wrong password or invalid file");
         console.error(err);
-        alert("Encryption failed");
     }
 }
 
