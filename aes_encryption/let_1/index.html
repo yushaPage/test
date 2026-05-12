@@ -1,153 +1,169 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Image Encrypt Decrypt</title>
+  <meta charset="UTF-8">
+  <title>AES-GCM Image Encryption Demo</title>
   <style>
-    body{
-      font-family:Arial;
-      padding:20px;
-    }
-
-    img{
-      max-width:300px;
-      margin-top:20px;
-      border:1px solid #ccc;
-    }
-
-    button{
-      margin-top:10px;
-      padding:10px 20px;
-      cursor:pointer;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .section { margin-bottom: 20px; }
+    img { max-width: 300px; display: block; margin-top: 10px; }
+    textarea { width: 100%; height: 120px; }
+    button { margin-right: 10px; padding: 8px 12px; }
+    pre { background: #f0f0f0; padding: 10px; }
   </style>
 </head>
 <body>
+  <h1>AES-GCM Image Encryption & Decryption</h1>
 
-<h2>Encrypt & Decrypt Image</h2>
+  <div class="section">
+    <input type="file" id="fileInput" accept="image/*">
+    <button onclick="encryptImage()">Encrypt</button>
+    <button onclick="decryptImage()">Decrypt</button>
+    <button onclick="downloadEncrypted()">Download .bin</button>
+  </div>
 
-<input type="file" id="imageFile">
-<br>
+  <div class="section">
+    <h2>Original Image</h2>
+    <img id="originalImg">
+  </div>
 
-<button onclick="encryptImage()">Encrypt Image</button>
-<button onclick="decryptImage()">Decrypt Image</button>
+  <div class="section">
+    <h2>Ciphertext Storage (Base64)</h2>
+    <textarea id="ciphertextBox" readonly></textarea>
+  </div>
 
-<h3>Decrypted Image Preview</h3>
-<img id="preview">
+  <div class="section">
+    <h2>Encryption Details</h2>
+    <pre id="detailsBox"></pre>
+  </div>
+
+  <div class="section">
+    <h2>Decrypted Image</h2>
+    <img id="decryptedImg">
+  </div>
 
 <script>
+let key;        // CryptoKey object
+let fileType;   // Original MIME type
+let combined;   // IV + ciphertext combined
 
-const PASSWORD = "k1GOScEK5B";
+// Convert fixed key string into 32-byte Uint8Array
+async function importFixedKey() {
+  const keyString = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+  const encoder = new TextEncoder();
+  let keyBytes = encoder.encode(keyString);
 
-let savedSalt;
-let savedIV;
+  if (keyBytes.length < 32) {
+    const padded = new Uint8Array(32);
+    padded.set(keyBytes);
+    keyBytes = padded;
+  } else if (keyBytes.length > 32) {
+    keyBytes = keyBytes.slice(0, 32);
+  }
 
-async function getKey(password, salt) {
-
-    const encoder = new TextEncoder();
-
-    const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(password),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey"]
-    );
-
-    return crypto.subtle.deriveKey(
-        {
-            name: "PBKDF2",
-            salt: salt,
-            iterations: 100000,
-            hash: "SHA-256"
-        },
-        keyMaterial,
-        {
-            name: "AES-GCM",
-            length: 256
-        },
-        false,
-        ["encrypt", "decrypt"]
-    );
+  key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
 }
+importFixedKey();
+
+// Helpers for Base64 conversion
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// Handle file selection
+document.getElementById("fileInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (file) {
+    fileType = file.type;
+    const url = URL.createObjectURL(file);
+    document.getElementById("originalImg").src = url;
+  }
+});
+
+// Encrypt image file
 async function encryptImage() {
-        
-        const file = document.getElementById("imageFile").files[0];
-        
-        if (!file) {
-            alert("Select image first");
-            return;
-        }
-        
-        const data = await file.arrayBuffer();
-        
-        savedSalt = crypto.getRandomValues(new Uint8Array(16));
-        savedIV = crypto.getRandomValues(new Uint8Array(12));
-        
-        const key = await getKey(PASSWORD, savedSalt);
-        
-        const encrypted = await crypto.subtle.encrypt(
-            {
-                name: "AES-GCM",
-                iv: savedIV
-            },
-            key,
-            data
-        );
-        const blob = new Blob([encrypted]);
-   
-   const a = document.createElement("a");
-   
-   a.href = URL.createObjectURL(blob);
-   a.download = "image_file.enc";
-   a.click();
-   
-   alert("Image encrypted and downloaded");
-   }
-   
-   async function decryptImage() {
-           
-           const file = document.getElementById("imageFile").files[0];
-           
-           if (!file) {
-               alert("Select encrypted file first");
-               return;
-           }
-           const encryptedData = await file.arrayBuffer();
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) return alert("Select an image first!");
 
-const key = await getKey(PASSWORD, savedSalt);
+  const buffer = await file.arrayBuffer();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
 
-try {
-    
-    const decrypted = await crypto.subtle.decrypt(
-        {
-            name: "AES-GCM",
-            iv: savedIV
-        },
-        key,
-        encryptedData
-    );
-    
-    const blob = new Blob([decrypted], {
-        type: "image/jpeg"
-    });
-    
-    const url = URL.createObjectURL(blob);
-    
-    document.getElementById("preview").src = url;
-    
-    const a = document.createElement("a");
-    a.href = url;
-        a.download = "image_file.jpg";
-        a.click();
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    buffer
+  );
 
-    }
-    catch(err) {
-        alert("Wrong password or invalid file");
-        console.error(err);
-    }
+  // Combine IV + ciphertext
+  combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+
+  document.getElementById("ciphertextBox").value = arrayBufferToBase64(combined);
+
+  // Show encryption details
+  document.getElementById("detailsBox").textContent =
+    "Initialization Vector (IV): " + Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(' ') +
+    "\nCiphertext length: " + ciphertext.byteLength + " bytes";
+
+  alert("Image encrypted successfully!");
 }
 
-</script>
+// Decrypt image file
+async function decryptImage() {
+  const base64 = document.getElementById("ciphertextBox").value;
+  if (!base64) return alert("No ciphertext available!");
 
+  const combinedArr = new Uint8Array(base64ToArrayBuffer(base64));
+  const iv = combinedArr.slice(0, 12);
+  const data = combinedArr.slice(12);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    data
+  );
+
+  const blob = new Blob([decrypted], { type: fileType });
+  const url = URL.createObjectURL(blob);
+  document.getElementById("decryptedImg").src = url;
+
+  alert("Image decrypted successfully!");
+}
+
+// Download encrypted data as .bin
+function downloadEncrypted() {
+  if (!combined) return alert("No encrypted data to download!");
+  const blob = new Blob([combined], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "encrypted.bin";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
 </body>
 </html>
