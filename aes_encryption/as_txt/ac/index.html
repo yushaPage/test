@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Encrypt/Decrypt (Base64 + XOR)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .section { border: 2px solid #ccc; padding: 20px; margin-top: 20px; display: none; }
+    .drop-zone {
+      border: 2px dashed #666; padding: 20px; margin: 10px 0; text-align: center;
+      cursor: pointer; background: #f9f9f9;
+    }
+    img { max-width: 100%; height: auto; margin-top: 20px; border: 1px solid #ccc; display: none; }
+    button { margin: 10px; padding: 8px 12px; }
+    textarea { width: 100%; height: 80px; margin-top: 10px; }
+    .toggle-buttons { text-align: center; margin-top: 20px; }
+    #encActions { text-align: center; margin-top: 20px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Image Encrypt / Decrypt (Base64 + XOR)</h1>
+
+  <!-- Toggle Buttons -->
+  <div class="toggle-buttons">
+    <button onclick="showSection('encrypt')">Encryption Section</button>
+    <button onclick="showSection('decrypt')">Decryption Section</button>
+  </div>
+
+  <!-- Encryption Section -->
+  <div class="section" id="encryptSection">
+    <h2>Encryption</h2>
+    <div class="drop-zone" id="encDropZone">
+      <p>Choose file / Drag & Drop / Paste (Clipboard or Mobile)</p>
+      <input type="file" id="encFileInput" accept="image/*"><br>
+      <textarea id="encPasteBox" placeholder="Paste image here"></textarea>
+    </div>
+    <img id="encPreview">
+    <div id="encActions">
+      <button onclick="encryptAndSave()">Encrypt & Save as TXT</button>
+      <button onclick="location.reload()">Encrypt Other</button>
+    </div>
+  </div>
+
+  <!-- Decryption Section -->
+  <div class="section" id="decryptSection">
+    <h2>Decryption</h2>
+    <div class="drop-zone" id="decDropZone">
+      <p>Choose file / Drag & Drop</p>
+      <input type="file" id="decFileInput" accept=".txt"><br>
+      <textarea id="decPasteBox" placeholder="Paste encrypted text here"></textarea>
+    </div>
+    <img id="decPreview">
+  </div>
+
+  <script>
+    const KEY = "001"; // XOR key
+    let base64Data = null;
+    let encryptedText = null;
+    let originalFileName = null;
+    let encryptedFileName = null;
+
+    // Show section toggle
+    function showSection(section) {
+      document.getElementById("encryptSection").style.display = (section === "encrypt") ? "block" : "none";
+      document.getElementById("decryptSection").style.display = (section === "decrypt") ? "block" : "none";
+    }
+    // Default: show decryption section
+    showSection("decrypt");
+
+    // XOR function
+    function xorEncrypt(str, keyStr) {
+      let result = "";
+      for (let i = 0; i < str.length; i++) {
+        result += String.fromCharCode(str.charCodeAt(i) ^ keyStr.charCodeAt(i % keyStr.length));
+      }
+      return result;
+    }
+
+    // --- Encryption Section ---
+    document.getElementById("encFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) readImageFile(file);
+    });
+
+    const encDropZone = document.getElementById("encDropZone");
+    encDropZone.addEventListener("dragover", e => { e.preventDefault(); encDropZone.style.background="#eef"; });
+    encDropZone.addEventListener("dragleave", e => { encDropZone.style.background="#f9f9f9"; });
+    encDropZone.addEventListener("drop", e => {
+      e.preventDefault(); encDropZone.style.background="#f9f9f9";
+      const file = e.dataTransfer.files[0];
+      if (file) readImageFile(file);
+    });
+
+    // Clipboard paste
+    document.addEventListener("paste", e => {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          if (file) readImageFile(file);
+        }
+      }
+    });
+
+    function readImageFile(file) {
+      originalFileName = file.name.replace(/\./g, "_"); // replace . with _
+      const reader = new FileReader();
+      reader.onload = function() {
+        const preview = document.getElementById("encPreview");
+        preview.src = reader.result;
+        preview.style.display = "block";
+        base64Data = reader.result.split(",")[1];
+        encryptedText = null;
+        // Hide input area, show action buttons
+        document.getElementById("encDropZone").style.display = "none";
+        document.getElementById("encActions").style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function encryptAndSave() {
+      if (!base64Data) return alert("No image loaded!");
+      encryptedText = xorEncrypt(base64Data, KEY);
+      encryptedFileName = `${originalFileName}_001_enc.txt`;
+      const blob = new Blob([encryptedText], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = encryptedFileName;
+      a.click();
+    }
+
+    // --- Decryption Section ---
+    document.getElementById("decFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) readEncryptedFile(file);
+    });
+
+    const decDropZone = document.getElementById("decDropZone");
+    decDropZone.addEventListener("dragover", e => { e.preventDefault(); decDropZone.style.background="#eef"; });
+    decDropZone.addEventListener("dragleave", e => { decDropZone.style.background="#f9f9f9"; });
+    decDropZone.addEventListener("drop", e => {
+      e.preventDefault(); decDropZone.style.background="#f9f9f9";
+      const file = e.dataTransfer.files[0];
+      if (file) readEncryptedFile(file);
+    });
+
+    function readEncryptedFile(file) {
+      encryptedFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = function() {
+        encryptedText = reader.result;
+        decryptAndPreview();
+      };
+      reader.readAsText(file);
+    }
+
+    function decryptAndPreview() {
+      if (!encryptedText) {
+        const pasted = document.getElementById("decPasteBox").value.trim();
+        if (!pasted) return alert("No encrypted text loaded!");
+        encryptedText = pasted;
+        encryptedFileName = "pasted_001_enc.txt";
+      }
+      const decryptedBase64 = xorEncrypt(encryptedText, KEY);
+      const preview = document.getElementById("decPreview");
+      preview.src = "data:image/png;base64," + decryptedBase64;
+      preview.style.display = "block";
+    }
+  </script>
+</body>
+</html>
