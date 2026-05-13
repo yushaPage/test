@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Encrypt to TXT (Base64 + XOR)</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
+    .drop-zone {
+      border: 2px dashed #666; padding: 20px; margin: 20px auto; width: 300px;
+      cursor: pointer; background: #f9f9f9;
+    }
+    input[type="file"], input[type="text"], button { margin: 10px; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Encrypt Image → TXT</h1>
+
+  <!-- File input -->
+  <input type="file" id="fileInput" accept="image/*"><br>
+
+  <!-- Drag & Drop -->
+  <div class="drop-zone" id="dropZone">Drag & Drop Image Here</div>
+
+  <!-- Direct URL -->
+  <input type="text" id="urlInput" placeholder="Enter image URL">
+  <button onclick="loadFromUrl()">Load from URL</button><br>
+
+  <!-- Encrypt button -->
+  <button onclick="encryptAndSave()">Encrypt & Save as TXT</button>
+
+  <script>
+    const KEY = "001"; // XOR key as string
+    let imageBytes = null;
+
+    // Handle file input
+    document.getElementById("fileInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (file) readFile(file);
+    });
+
+    // Handle drag & drop
+    const dropZone = document.getElementById("dropZone");
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.style.background="#eef"; });
+    dropZone.addEventListener("dragleave", e => { dropZone.style.background="#f9f9f9"; });
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.style.background="#f9f9f9";
+      const file = e.dataTransfer.files[0];
+      if (file) readFile(file);
+    });
+
+    // Load from URL
+    function loadFromUrl() {
+      const url = document.getElementById("urlInput").value;
+      if (!url) return alert("Enter a valid URL");
+      fetch(url)
+        .then(res => res.blob())
+        .then(blob => readFile(blob))
+        .catch(err => alert("Failed to load image: " + err));
+    }
+
+    // Read file/blob into bytes
+    function readFile(fileOrBlob) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        imageBytes = new Uint8Array(reader.result);
+        alert("Image loaded successfully!");
+      };
+      reader.readAsArrayBuffer(fileOrBlob);
+    }
+
+    // XOR encryption
+    function xorEncrypt(base64Str, keyStr) {
+      let result = "";
+      for (let i = 0; i < base64Str.length; i++) {
+        result += String.fromCharCode(base64Str.charCodeAt(i) ^ keyStr.charCodeAt(i % keyStr.length));
+      }
+      return result;
+    }
+
+    // Encrypt and save
+    function encryptAndSave() {
+      if (!imageBytes) return alert("No image loaded!");
+      // Convert to Base64
+      const b64 = btoa(String.fromCharCode(...imageBytes));
+      // XOR encrypt
+      const encrypted = xorEncrypt(b64, KEY);
+      // Save as .txt
+      const blob = new Blob([encrypted], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "encrypted.txt";
+      a.click();
+    }
+  </script>
+</body>
+</html>
