@@ -1,0 +1,6 @@
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const name = params.get("name") || "No name";
+  const jsonData = { name: name, status: "ok" };
+  document.body.textContent = JSON.stringify(jsonData);
+</script>
