@@ -4,69 +4,51 @@
   <meta charset="UTF-8">
   <title>Image Encrypt/Decrypt (Base64 + XOR)</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 40px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-top: 40px; }
+    .section { border: 2px solid #ccc; padding: 20px; margin-bottom: 30px; }
     .drop-zone {
-      border: 2px dashed #666; padding: 20px; margin: 20px auto; width: 300px;
+      border: 2px dashed #666; padding: 20px; margin: 10px 0; text-align: center;
       cursor: pointer; background: #f9f9f9;
     }
-    img { max-width: 300px; margin-top: 20px; border: 1px solid #ccc; }
+    img { max-width: 100%; height: auto; margin-top: 20px; border: 1px solid #ccc; }
     button { margin: 10px; padding: 8px 12px; }
   </style>
 </head>
 <body>
-  <h1>Encrypt / Decrypt Image</h1>
+  <h1>Image Encrypt / Decrypt (Base64 + XOR)</h1>
 
-  <!-- File input -->
-  <input type="file" id="fileInput" accept="image/*"><br>
+  <!-- Encryption Section -->
+  <div class="section">
+    <h2>1. Encryption</h2>
+    <input type="file" id="encFileInput" accept="image/*"><br>
+    <div class="drop-zone" id="encDropZone">Drag & Drop Image Here</div>
+    <p>Or paste image from clipboard (Ctrl+V)</p>
+    <img id="encPreview" alt="Image preview will appear here">
+    <div>
+      <button onclick="encryptAndSave()">Encrypt & Save as TXT</button>
+    </div>
+  </div>
 
-  <!-- Drag & Drop -->
-  <div class="drop-zone" id="dropZone">Drag & Drop Image Here</div>
-
-  <!-- Preview -->
-  <img id="preview" alt="Preview will appear here">
-
-  <!-- Buttons -->
-  <div>
-    <button onclick="encryptAndSave()">Encrypt & Save as TXT</button>
-    <button onclick="decryptAndSave()">Decrypt & Save Image</button>
+  <!-- Decryption Section -->
+  <div class="section">
+    <h2>2. Decryption</h2>
+    <input type="file" id="decFileInput" accept=".txt"><br>
+    <div class="drop-zone" id="decDropZone">Drag & Drop Encrypted TXT Here</div>
+    <div>
+      <button id="downloadBtn" style="display:none;">Download Decrypted Image</button>
+    </div>
+    <img id="decPreview" alt="Decrypted image preview will appear here">
   </div>
 
   <script>
     const KEY = "001"; // XOR key
-    let base64Data = null; // store Base64 of image
-    let encryptedText = null; // store encrypted text
+    let base64Data = null;
+    let encryptedText = null;
+    let originalFileName = null;
+    let encryptedFileName = null;
 
-    // Handle file input
-    document.getElementById("fileInput").addEventListener("change", function(e) {
-      const file = e.target.files[0];
-      if (file) readFile(file);
-    });
-
-    // Handle drag & drop
-    const dropZone = document.getElementById("dropZone");
-    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.style.background="#eef"; });
-    dropZone.addEventListener("dragleave", e => { dropZone.style.background="#f9f9f9"; });
-    dropZone.addEventListener("drop", e => {
-      e.preventDefault();
-      dropZone.style.background="#f9f9f9";
-      const file = e.dataTransfer.files[0];
-      if (file) readFile(file);
-    });
-
-    // Read file and show preview
-    function readFile(file) {
-      const reader = new FileReader();
-      reader.onload = function() {
-        // Preview image
-        document.getElementById("preview").src = reader.result;
-        // Store Base64 data (strip "data:image/...;base64,")
-        base64Data = reader.result.split(",")[1];
-        encryptedText = null; // reset
-      };
-      reader.readAsDataURL(file);
-    }
-
-    // XOR encryption
+    // XOR function
     function xorEncrypt(str, keyStr) {
       let result = "";
       for (let i = 0; i < str.length; i++) {
@@ -75,31 +57,102 @@
       return result;
     }
 
-    // Encrypt and save as TXT
+    // --- Encryption Section ---
+    document.getElementById("encFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) readImageFile(file);
+    });
+
+    const encDropZone = document.getElementById("encDropZone");
+    encDropZone.addEventListener("dragover", e => { e.preventDefault(); encDropZone.style.background="#eef"; });
+    encDropZone.addEventListener("dragleave", e => { encDropZone.style.background="#f9f9f9"; });
+    encDropZone.addEventListener("drop", e => {
+      e.preventDefault(); encDropZone.style.background="#f9f9f9";
+      const file = e.dataTransfer.files[0];
+      if (file) readImageFile(file);
+    });
+
+    // Clipboard paste
+    document.addEventListener("paste", e => {
+      const items = e.clipboardData.items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          if (file) readImageFile(file);
+        }
+      }
+    });
+
+    function readImageFile(file) {
+      originalFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = function() {
+        document.getElementById("encPreview").src = reader.result;
+        base64Data = reader.result.split(",")[1];
+        encryptedText = null;
+      };
+      reader.readAsDataURL(file);
+    }
+
     function encryptAndSave() {
       if (!base64Data) return alert("No image loaded!");
       encryptedText = xorEncrypt(base64Data, KEY);
+      const now = new Date();
+      const dateTime = now.toISOString().replace(/[:.]/g,"-");
+      encryptedFileName = `${dateTime}_${originalFileName}_secure_text.txt`;
       const blob = new Blob([encryptedText], { type: "text/plain" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "encrypted.txt";
+      a.download = encryptedFileName;
       a.click();
     }
 
-    // Decrypt and save image
-    function decryptAndSave() {
-      if (!encryptedText) return alert("No encrypted text available! Encrypt first.");
+    // --- Decryption Section ---
+    document.getElementById("decFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) readEncryptedFile(file);
+    });
+
+    const decDropZone = document.getElementById("decDropZone");
+    decDropZone.addEventListener("dragover", e => { e.preventDefault(); decDropZone.style.background="#eef"; });
+    decDropZone.addEventListener("dragleave", e => { decDropZone.style.background="#f9f9f9"; });
+    decDropZone.addEventListener("drop", e => {
+      e.preventDefault(); decDropZone.style.background="#f9f9f9";
+      const file = e.dataTransfer.files[0];
+      if (file) readEncryptedFile(file);
+    });
+
+    function readEncryptedFile(file) {
+      encryptedFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = function() {
+        encryptedText = reader.result;
+        decryptAndPreview();
+      };
+      reader.readAsText(file);
+    }
+
+    function decryptAndPreview() {
+      if (!encryptedText) return alert("No encrypted text loaded!");
       const decryptedBase64 = xorEncrypt(encryptedText, KEY);
-      const imgBytes = atob(decryptedBase64);
-      const byteArray = new Uint8Array(imgBytes.length);
-      for (let i = 0; i < imgBytes.length; i++) {
-        byteArray[i] = imgBytes.charCodeAt(i);
-      }
-      const blob = new Blob([byteArray], { type: "image/png" }); // default PNG
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "decrypted.png";
-      a.click();
+      const imgSrc = "data:image/png;base64," + decryptedBase64;
+      const preview = document.getElementById("decPreview");
+      preview.src = imgSrc;
+      // Show download button
+      const downloadBtn = document.getElementById("downloadBtn");
+      downloadBtn.style.display = "inline-block";
+      downloadBtn.onclick = function() {
+        const imgBytes = atob(decryptedBase64);
+        const byteArray = new Uint8Array(imgBytes.length);
+        for (let i = 0; i < imgBytes.length; i++) {
+          byteArray[i] = imgBytes.charCodeAt(i);
+        }
+        const blob = new Blob([byteArray], { type: "image/png" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = encryptedFileName.replace("_secure_text.txt", "");
+        a.click();
+      };
     }
   </script>
 </body>
