@@ -235,7 +235,7 @@
     <img id="encPreview">
     <div id="encActions" style="display: none;">
       <button onclick="encryptAndSave()">Encrypt & Download .TXT</button>
-      <button class="btn-secondary" onclick="location.reload()">Reset</button>
+      <button class="btn-secondary" onclick="resetApp()">Reset</button>
     </div>
   </div>
 
@@ -252,9 +252,8 @@
         <div id="decFileName" class="file-name-display"></div>
       </div>
 
-      <textarea id="decPasteBox" placeholder="Or paste encrypted string here..."></textarea>
+      <textarea id="decPasteBox" placeholder="Or paste encrypted string here... (Auto-decrypts)"></textarea>
     </div>
-    <button style="width:100%; margin-top: 20px;" onclick="decryptAndPreview()">Decrypt Now</button>
     <div id="errorMsg"></div>
   </div>
 
@@ -263,7 +262,7 @@
     <h2>Decrypted Result</h2>
     <img id="decPreview">
     <div style="margin-top:20px">
-      <button class="btn-secondary" onclick="location.reload()">Process Another</button>
+      <button class="btn-secondary" onclick="resetApp()">Process Another</button>
     </div>
   </div>
 
@@ -274,22 +273,65 @@
     let originalFileName = null;
     let encryptedFileName = null;
 
-    // UI Wrapper for original showSection
+    // UI Wrapper for showing sections
     function uiShowSection(section) {
-      showSection(section);
-      document.getElementById('btn-enc').classList.toggle('active', section === 'encrypt');
-      document.getElementById('btn-dec').classList.toggle('active', section === 'decrypt');
-    }
-
-    // Original Show section logic
-    function showSection(section) {
       document.getElementById("encryptSection").style.display = (section === "encrypt") ? "block" : "none";
       document.getElementById("decryptSection").style.display = (section === "decrypt") ? "block" : "none";
       document.getElementById("decResult").style.display = "none";
+      
+      document.getElementById('btn-enc').classList.toggle('active', section === 'encrypt');
+      document.getElementById('btn-dec').classList.toggle('active', section === 'decrypt');
+      
+      // Clear errors when switching tabs
+      document.getElementById("errorMsg").textContent = "";
     }
     
     // Initial State
     uiShowSection("decrypt");
+
+    // Global Reset Function (replaces location.reload)
+    function resetApp() {
+      // Clear logic variables
+      base64Data = null;
+      encryptedText = null;
+      originalFileName = null;
+      encryptedFileName = null;
+
+      // Clear all inputs & textareas
+      document.getElementById('encFileInput').value = '';
+      document.getElementById('decFileInput').value = '';
+      document.getElementById('encPasteBox').value = '';
+      document.getElementById('decPasteBox').value = '';
+
+      // Clear custom file names
+      document.getElementById('encFileName').textContent = '';
+      document.getElementById('decFileName').textContent = '';
+
+      // Clear & Hide Previews
+      const encPreview = document.getElementById('encPreview');
+      encPreview.src = '';
+      encPreview.style.display = 'none';
+
+      const decPreview = document.getElementById('decPreview');
+      decPreview.src = '';
+      decPreview.style.display = 'none';
+      decPreview.removeAttribute('data-filename');
+
+      // Reset Encryption view to default state
+      document.getElementById('encDropZone').style.display = 'block';
+      document.getElementById('encActions').style.display = 'none';
+
+      // Reset Decryption view to default state
+      document.getElementById('decryptSection').style.display = 'block';
+      document.getElementById('decResult').style.display = 'none';
+      
+      // Clear error messages
+      document.getElementById('errorMsg').textContent = '';
+      
+      // Re-trigger the active tab layout to ensure views are correct
+      const activeTab = document.getElementById('btn-enc').classList.contains('active') ? 'encrypt' : 'decrypt';
+      uiShowSection(activeTab);
+    }
 
     // XOR function (Logic Unchanged)
     function xorEncrypt(str, keyStr) {
@@ -321,7 +363,8 @@
       }
     });
 
-    document.addEventListener("paste", e => {
+    // Auto-detect Paste on encryption section
+    document.getElementById("encPasteBox").addEventListener("paste", e => {
       const items = e.clipboardData.items;
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf("image") !== -1) {
@@ -381,37 +424,45 @@
       }
     });
 
+    // Auto-Decrypt on text paste or input
+    document.getElementById("decPasteBox").addEventListener("input", e => {
+      const pasted = e.target.value.trim();
+      if (pasted.length > 10) { // arbitrary small length to prevent triggering on a single letter
+        encryptedText = pasted;
+        encryptedFileName = "pasted_001_enc.txt";
+        decryptAndPreview();
+      } else {
+        document.getElementById("errorMsg").textContent = ""; // Clear errors if user is deleting text
+      }
+    });
+
     function readEncryptedFile(file) {
       encryptedFileName = file.name;
       const reader = new FileReader();
       reader.onload = function() {
         encryptedText = reader.result;
-        // Optionally auto-decrypt on load, or wait for button click:
-        // decryptAndPreview(); 
+        decryptAndPreview(); // Auto decrypt!
       };
       reader.readAsText(file);
     }
 
     function decryptAndPreview() {
       try {
-        if (!encryptedText) {
-          const pasted = document.getElementById("decPasteBox").value.trim();
-          if (!pasted) throw new Error("Please upload a file or paste text!");
-          encryptedText = pasted;
-          encryptedFileName = "pasted_001_enc.txt";
-        }
+        if (!encryptedText) throw new Error("No encrypted text found!");
 
         const decryptedBase64 = xorEncrypt(encryptedText, KEY);
-        if (!decryptedBase64 || decryptedBase64.length < 10) throw new Error("Decryption failed! Check your key or file.");
+        if (!decryptedBase64 || decryptedBase64.length < 10) throw new Error("Decryption failed! Check your file or text.");
 
         const preview = document.getElementById("decPreview");
         preview.src = "data:image/png;base64," + decryptedBase64;
         preview.style.display = "block";
         document.getElementById("errorMsg").textContent = "";
+        
+        // Hide dropzone and show result
         document.getElementById("decryptSection").style.display = "none";
         document.getElementById("decResult").style.display = "block";
 
-        let originalName = encryptedFileName.replace("_001_enc.txt", "");
+        let originalName = encryptedFileName ? encryptedFileName.replace("_001_enc.txt", "") : "image";
         preview.setAttribute("data-filename", originalName);
 
       } catch (err) {
