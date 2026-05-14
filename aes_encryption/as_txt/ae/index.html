@@ -16,7 +16,7 @@
     textarea { width: 100%; height: 80px; margin-top: 10px; }
     .toggle-buttons { text-align: center; margin-top: 20px; }
     #encActions { text-align: center; margin-top: 20px; display: none; }
-    #decActions { text-align: center; margin-top: 20px; display: none; }
+    #decResult { border: 2px solid #ccc; padding: 20px; margin-top: 20px; text-align: center; display: none; }
     #errorMsg { color: red; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
@@ -53,8 +53,12 @@
       <textarea id="decPasteBox" placeholder="Paste encrypted text here"></textarea>
     </div>
     <div id="errorMsg"></div>
+  </div>
+
+  <!-- Decryption Result -->
+  <div id="decResult">
     <img id="decPreview">
-    <div id="decActions">
+    <div>
       <button onclick="location.reload()">Decrypt Other</button>
     </div>
   </div>
@@ -70,6 +74,7 @@
     function showSection(section) {
       document.getElementById("encryptSection").style.display = (section === "encrypt") ? "block" : "none";
       document.getElementById("decryptSection").style.display = (section === "decrypt") ? "block" : "none";
+      document.getElementById("decResult").style.display = "none";
     }
     // Default: show decryption section
     showSection("decrypt");
@@ -161,7 +166,7 @@
       reader.readAsText(file);
     }
 
-    function decryptAndPreview() {
+        function decryptAndPreview() {
       try {
         if (!encryptedText) {
           const pasted = document.getElementById("decPasteBox").value.trim();
@@ -169,17 +174,26 @@
           encryptedText = pasted;
           encryptedFileName = "pasted_001_enc.txt";
         }
+
         const decryptedBase64 = xorEncrypt(encryptedText, KEY);
         if (!decryptedBase64 || decryptedBase64.length < 10) throw new Error("Decryption failed!");
+
+        // Show image preview
         const preview = document.getElementById("decPreview");
         preview.src = "data:image/png;base64," + decryptedBase64;
         preview.style.display = "block";
+
+        // Clear error message
         document.getElementById("errorMsg").textContent = "";
-        // Hide decrypt section, show "Decrypt Other"
+
+        // Hide decrypt section, show result box
         document.getElementById("decryptSection").style.display = "none";
-        document.getElementById("decActions").style.display = "block";
-        document.body.appendChild(document.getElementById("decActions"));
-        document.body.appendChild(preview);
+        document.getElementById("decResult").style.display = "block";
+
+        // Give original name from .txt file (remove _001_enc.txt suffix)
+        let originalName = encryptedFileName.replace("_001_enc.txt", "");
+        preview.setAttribute("data-filename", originalName);
+
       } catch (err) {
         document.getElementById("errorMsg").textContent = err.message;
       }
