@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vault Crypt | Secure XOR</title>
+  <style>
+    :root {
+      --bg-color: #0b0b0b;
+      --card-bg: #1e1e1e;
+      --accent-blue: #0078d4;
+      --accent-hover: #005a9e;
+      --text-main: #ffffff;
+      --text-dim: #a1a1a1;
+      --border-color: #333333;
+      --error-red: #ff5f5f;
+    }
+
+    body { 
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+      margin: 0; background-color: var(--bg-color); color: var(--text-main);
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 40px 20px;
+    }
+
+    h1 { 
+      font-weight: 600; letter-spacing: -0.5px; margin-bottom: 30px;
+      background: linear-gradient(90deg, #fff, #888);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* Modal Styling */
+    #keyModal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); display: flex; align-items: center;
+      justify-content: center; z-index: 1000; display: none;
+    }
+    .modal-content {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 40px; border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
+    }
+    .modal-content input {
+      background: #121212; border: 1px solid var(--border-color);
+      color: white; padding: 12px; border-radius: 8px; width: 100%;
+      font-size: 1.2rem; text-align: center; margin: 20px 0; box-sizing: border-box;
+    }
+
+    /* Sections */
+    .toggle-buttons { 
+      background: var(--card-bg); padding: 6px; border-radius: 12px;
+      border: 1px solid var(--border-color); margin-bottom: 30px;
+    }
+    .toggle-buttons button {
+      background: transparent; border: none; color: var(--text-dim);
+      padding: 10px 24px; cursor: pointer; border-radius: 8px;
+      font-weight: 500; transition: all 0.2s ease;
+    }
+    .toggle-buttons button.active { background: var(--accent-blue); color: white; }
+
+    .section { 
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 30px; border-radius: 16px; width: 100%; max-width: 600px;
+      display: none; animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .drop-zone {
+      border: 2px dashed #444; padding: 40px 20px; text-align: center;
+      cursor: pointer; background: #252525; border-radius: 12px;
+    }
+
+    .file-upload-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; }
+    .custom-file-btn { background: #333; color: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .file-name-display { font-size: 0.85rem; color: var(--accent-blue); font-style: italic; }
+
+    textarea { 
+      width: 100%; height: 100px; margin-top: 15px; background: #121212;
+      border: 1px solid var(--border-color); border-radius: 8px; color: #00ff41;
+      padding: 12px; font-family: 'Courier New', monospace; box-sizing: border-box;
+    }
+
+    button { background: var(--accent-blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: #333; border: 1px solid var(--border-color); }
+    
+    img { max-width: 100%; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color); display: none; }
+    #errorMsg { color: var(--error-red); font-weight: 500; margin-top: 15px; text-align: center;}
+    .key-indicator { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Key Entry Modal -->
+  <div id="keyModal">
+    <div class="modal-content">
+      <h2>Enter Security Key</h2>
+      <p style="color: var(--text-dim)">Set a 3 to 5 digit key to proceed</p>
+      <input type="number" id="modalKeyInput" placeholder="e.g. 123" min="100" max="99999">
+      <button onclick="setKeyFromModal()" style="width: 100%">Continue</button>
+      <p id="modalError" style="color: var(--error-red); font-size: 0.8rem; margin-top: 10px;"></p>
+    </div>
+  </div>
+
+  <h1>Vault Crypt</h1>
+  <div class="key-indicator" id="activeKeyDisplay">Key: Loading...</div>
+
+  <div class="toggle-buttons">
+    <button id="btn-enc" onclick="uiShowSection('encrypt')">Encrypt Image</button>
+    <button id="btn-dec" onclick="uiShowSection('decrypt')">Decrypt Text</button>
+  </div>
+
+  <div class="section" id="encryptSection">
+    <h2>Secure Encryption</h2>
+    <div class="drop-zone" id="encDropZone">
+      <p>Drag image here or click to browse</p>
+      <div class="file-upload-wrapper">
+        <label for="encFileInput" class="custom-file-btn">Choose Image File</label>
+        <input type="file" id="encFileInput" accept="image/*" style="display: none;">
+        <div id="encFileName" class="file-name-display"></div>
+      </div>
+      <textarea id="encPasteBox" placeholder="Or paste image data here..."></textarea>
+    </div>
+    <img id="encPreview">
+    <div id="encActions" style="display: none;">
+      <button onclick="encryptAndSave()">Encrypt & Download</button>
+      <button class="btn-secondary" onclick="resetApp()">Reset</button>
+    </div>
+  </div>
+
+  <div class="section" id="decryptSection">
+    <h2>Secure Decryption</h2>
+    <div class="drop-zone" id="decDropZone">
+      <p>Drop your .TXT file here</p>
+      <div class="file-upload-wrapper">
+        <label for="decFileInput" class="custom-file-btn">Choose .TXT File</label>
+        <input type="file" id="decFileInput" accept=".txt" style="display: none;">
+        <div id="decFileName" class="file-name-display"></div>
+      </div>
+      <textarea id="decPasteBox" placeholder="Or paste encrypted string... (Auto-decrypts)"></textarea>
+    </div>
+    <div id="errorMsg"></div>
+  </div>
+
+  <div id="decResult" style="display:none; background: var(--card-bg); border: 1px solid var(--border-color); padding: 30px; border-radius: 16px; max-width: 600px; width: 100%; text-align: center;">
+    <h2>Decrypted Result</h2>
+    <img id="decPreview">
+    <div style="margin-top:20px">
+      <button class="btn-secondary" onclick="resetApp()">Process Another</button>
+    </div>
+  </div>
+
+  <script>
+    let KEY = ""; 
+    let base64Data = null;
+    let encryptedText = null;
+    let originalFileName = null;
+    let originalExtension = null;
+
+    // --- Key Initialization Logic ---
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('key');
+
+      if (urlKey && urlKey.length >= 3 && urlKey.length <= 5 && !isNaN(urlKey)) {
+        KEY = urlKey;
+        document.getElementById("activeKeyDisplay").textContent = `Active Key: ${KEY}`;
+        uiShowSection("decrypt");
+      } else {
+        document.getElementById("keyModal").style.display = "flex";
+      }
+    };
+
+    function setKeyFromModal() {
+      const val = document.getElementById("modalKeyInput").value;
+      const err = document.getElementById("modalError");
+      
+      if (val.length >= 3 && val.length <= 5) {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?key=' + val;
+        window.location.href = newUrl;
+      } else {
+        err.textContent = "Key must be between 3 and 5 digits.";
+      }
+    }
+
+    function uiShowSection(section) {
+      document.getElementById("encryptSection").style.display = (section === "encrypt") ? "block" : "none";
+      document.getElementById("decryptSection").style.display = (section === "decrypt") ? "block" : "none";
+      document.getElementById("decResult").style.display = "none";
+      document.getElementById('btn-enc').classList.toggle('active', section === 'encrypt');
+      document.getElementById('btn-dec').classList.toggle('active', section === 'decrypt');
+      document.getElementById("errorMsg").textContent = "";
+    }
+
+    function resetApp() {
+      base64Data = null; encryptedText = null; originalFileName = null; originalExtension = null;
+      document.getElementById('encFileInput').value = '';
+      document.getElementById('decFileInput').value = '';
+      document.getElementById('encPasteBox').value = '';
+      document.getElementById('decPasteBox').value = '';
+      document.getElementById('encFileName').textContent = '';
+      document.getElementById('decFileName').textContent = '';
+      document.getElementById('encPreview').style.display = 'none';
+      document.getElementById('decPreview').style.display = 'none';
+      document.getElementById('encDropZone').style.display = 'block';
+      document.getElementById('encActions').style.display = 'none';
+      document.getElementById('decResult').style.display = 'none';
+      document.getElementById('decryptSection').style.display = 'block';
+      document.getElementById('errorMsg').textContent = '';
+    }
+
+    function xorEncrypt(str, keyStr) {
+      let result = "";
+      for (let i = 0; i < str.length; i++) {
+        result += String.fromCharCode(str.charCodeAt(i) ^ keyStr.charCodeAt(i % keyStr.length));
+      }
+      return result;
+    }
+
+    // --- Encryption Section ---
+    document.getElementById("encFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) handleImageFile(file);
+    });
+
+    function handleImageFile(file) {
+      document.getElementById("encFileName").textContent = file.name;
+      // Extract file name and extension
+      const lastDot = file.name.lastIndexOf('.');
+      originalFileName = file.name.substring(0, lastDot);
+      originalExtension = file.name.substring(lastDot + 1);
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        const preview = document.getElementById("encPreview");
+        preview.src = reader.result;
+        preview.style.display = "block";
+        base64Data = reader.result.split(",")[1];
+        document.getElementById("encDropZone").style.display = "none";
+        document.getElementById("encActions").style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function encryptAndSave() {
+      if (!base64Data) return alert("No image loaded!");
+      encryptedText = xorEncrypt(base64Data, KEY);
+      // New format: [Name]_[Extension]_[Key].txt
+      const fileName = `${originalFileName}_${originalExtension}_${KEY}.txt`;
+      
+      const blob = new Blob([encryptedText], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+    }
+
+    // --- Decryption Section ---
+    document.getElementById("decFileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById("decFileName").textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = function() {
+          encryptedText = reader.result;
+          decryptAndPreview();
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    document.getElementById("decPasteBox").addEventListener("input", e => {
+      const pasted = e.target.value.trim();
+      if (pasted.length > 10) {
+        encryptedText = pasted;
+        decryptAndPreview();
+      }
+    });
+
+    function decryptAndPreview() {
+      try {
+        if (!encryptedText) throw new Error("No text provided");
+        const decryptedBase64 = xorEncrypt(encryptedText, KEY);
+        if (!decryptedBase64 || decryptedBase64.length < 10) throw new Error("Decryption failed. Wrong key or corrupted data.");
+
+        const preview = document.getElementById("decPreview");
+        // We try to render it. Note: Base64 usually contains the type or we default to png
+        preview.src = "data:image/png;base64," + decryptedBase64;
+        preview.style.display = "block";
+        
+        document.getElementById("decryptSection").style.display = "none";
+        document.getElementById("decResult").style.display = "block";
+      } catch (err) {
+        document.getElementById("errorMsg").textContent = err.message;
+      }
+    }
+  </script>
+</body>
+</html>
