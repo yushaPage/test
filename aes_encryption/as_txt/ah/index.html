@@ -29,12 +29,327 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
 
-    /* Key Entry Modal */
     #keyModal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.95); display: flex; align-items: center;
       justify-content: center; z-index: 1000; display: none;
     }
+    .modal-content {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 40px; border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
+    }
+    .modal-content input {
+      background: #121212; border: 1px solid var(--border-color);
+      color: white; padding: 12px; border-radius: 8px; width: 100%;
+      font-size: 1.2rem; text-align: center; margin: 20px 0; box-sizing: border-box;
+    }
+
+    .toggle-buttons { 
+      background: var(--card-bg); padding: 6px; border-radius: 12px;
+      border: 1px solid var(--border-color); margin-bottom: 30px;
+      display: flex; gap: 5px;
+    }
+    .toggle-buttons button {
+      background: transparent; border: none; color: var(--text-dim);
+      padding: 10px 24px; cursor: pointer; border-radius: 8px;
+      font-weight: 500; transition: all 0.2s ease;
+    }
+    .toggle-buttons button.active { background: var(--accent-blue); color: white; }
+
+    .section { 
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 30px; border-radius: 16px; width: 100%; max-width: 600px;
+      display: none; box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .drop-zone {
+      border: 2px dashed #444; padding: 40px 20px; text-align: center;
+      cursor: pointer; background: #252525; border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+    .drop-zone.dragover { border-color: var(--accent-blue); background: #2a2a2a; }
+
+    .file-upload-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; }
+    .custom-file-btn { background: #333; color: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .file-name-display { font-size: 0.85rem; color: var(--accent-blue); font-style: italic; min-height: 1.2rem; }
+
+    textarea { 
+      width: 100%; height: 100px; margin-top: 15px; background: #121212;
+      border: 1px solid var(--border-color); border-radius: 8px; color: #00ff41;
+      padding: 12px; font-family: 'Courier New', monospace; box-sizing: border-box; resize: none;
+    }
+
+    button { background: var(--accent-blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: #333; border: 1px solid var(--border-color); }
+    
+    img { max-width: 100%; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color); display: none; }
+    
+    #errorMsg { color: var(--error-red); font-weight: 500; margin-top: 15px; text-align: center; width: 100%;}
+    .key-indicator { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px; }
+
+    #decResult {
+        text-align: center; width: 100%; max-width: 600px;
+        background: var(--card-bg); border: 1px solid var(--border-color);
+        padding: 30px; border-radius: 16px; box-sizing: border-box; display: none;
+    }
+    
+    .button-group {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="keyModal">
+    <div class="modal-content">
+      <h2 style="margin-top:0">Enter Security Key</h2>
+      <p style="color: var(--text-dim)">Please enter a 3 to 5 digit key</p>
+      <input type="number" id="modalKeyInput" placeholder="000">
+      <button onclick="setKeyFromModal()" style="width: 100%">Continue</button>
+      <p id="modalError" style="color: var(--error-red); font-size: 0.8rem; margin-top: 10px;"></p>
+    </div>
+  </div>
+
+  <h1>Vault Crypt</h1>
+  <div class="key-indicator" id="activeKeyDisplay">Key: Loading...</div>
+
+  <div class="toggle-buttons" id="navButtons">
+    <button id="btn-enc" onclick="uiShowSection('encrypt')">Encrypt Image</button>
+    <button id="btn-dec" onclick="uiShowSection('decrypt')">Decrypt Text</button>
+  </div>
+
+  <!-- Encryption -->
+  <div class="section" id="encryptSection">
+    <h2 style="margin:0 0 20px 0; font-size: 1.2rem; color: var(--text-dim);">Secure Encryption</h2>
+    <div class="drop-zone" id="encDropZone">
+      <p style="margin:0 0 20px 0; color: var(--text-dim);">Drag image / Click browse / Paste clipboard</p>
+      <div class="file-upload-wrapper">
+        <label for="encFileInput" class="custom-file-btn">Choose Image File</label>
+        <input type="file" id="encFileInput" accept="image/*" style="display: none;">
+        <div id="encFileName" class="file-name-display"></div>
+      </div>
+      <textarea id="encPasteBox" placeholder="Optional: Paste Base64 here..."></textarea>
+    </div>
+    <div style="text-align: center;"><img id="encPreview"></div>
+    <div id="encActions" style="display: none;">
+      <div class="button-group">
+        <button onclick="encryptAndSave()">Encrypt & Download</button>
+        <button class="btn-secondary" onclick="resetApp()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decryption -->
+  <div class="section" id="decryptSection">
+    <h2 style="margin:0 0 20px 0; font-size: 1.2rem; color: var(--text-dim);">Secure Decryption</h2>
+    <div class="drop-zone" id="decDropZone">
+      <p style="margin:0 0 20px 0; color: var(--text-dim);">Drop .TXT file here or browse</p>
+      <div class="file-upload-wrapper">
+        <label for="decFileInput" class="custom-file-btn">Choose .TXT File</label>
+        <input type="file" id="decFileInput" accept=".txt" style="display: none;">
+        <div id="decFileName" class="file-name-display"></div>
+      </div>
+      <textarea id="decPasteBox" placeholder="Paste encrypted string..."></textarea>
+    </div>
+    <div id="errorMsg"></div>
+  </div>
+
+  <!-- Decryption Result -->
+  <div id="decResult">
+    <h2 style="margin:0 0 20px 0; font-size: 1.2rem; color: var(--text-dim);">Decrypted Image</h2>
+    <img id="decPreview" style="display: block; margin: 20px auto;">
+    <div class="button-group">
+      <button onclick="downloadDecryptedImage()">Download Image</button>
+      <button class="btn-secondary" onclick="resetApp()">Process Another</button>
+    </div>
+  </div>
+
+  <script>
+    let KEY = ""; 
+    let base64Data = null;
+    let encryptedText = null;
+    let originalFileName = "image";
+    let originalExtension = "png";
+    let targetDownloadName = "decrypted_image.png";
+
+    // Initialize Key from URL
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('key');
+      if (urlKey && urlKey.length >= 3 && urlKey.length <= 5) {
+        KEY = urlKey;
+        document.getElementById("activeKeyDisplay").textContent = `Active Key: ${KEY}`;
+        uiShowSection("decrypt");
+      } else {
+        document.getElementById("keyModal").style.display = "flex";
+      }
+    };
+
+    function setKeyFromModal() {
+      const val = document.getElementById("modalKeyInput").value;
+      if (val.length >= 3 && val.length <= 5) {
+        window.location.search = `?key=${val}`;
+      } else {
+        document.getElementById("modalError").textContent = "Key must be 3-5 digits.";
+      }
+    }
+
+    function uiShowSection(section) {
+      document.getElementById("encryptSection").style.display = (section === 'encrypt') ? "block" : "none";
+      document.getElementById("decryptSection").style.display = (section === 'decrypt') ? "block" : "none";
+      document.getElementById("decResult").style.display = "none";
+      document.getElementById('btn-enc').classList.toggle('active', section === 'encrypt');
+      document.getElementById('btn-dec').classList.toggle('active', section === 'decrypt');
+    }
+
+    function resetApp() {
+      base64Data = null; encryptedText = null;
+      document.querySelectorAll('input').forEach(i => i.value = '');
+      document.querySelectorAll('textarea').forEach(t => t.value = '');
+      document.querySelectorAll('.file-name-display').forEach(d => d.textContent = '');
+      document.querySelectorAll('img').forEach(img => { img.src = ''; img.style.display = 'none'; });
+      document.getElementById('encDropZone').style.display = 'block';
+      document.getElementById('encActions').style.display = 'none';
+      document.getElementById('errorMsg').textContent = '';
+      uiShowSection(document.getElementById('btn-enc').classList.contains('active') ? 'encrypt' : 'decrypt');
+    }
+
+    function xorEncrypt(str, keyStr) {
+      let result = "";
+      for (let i = 0; i < str.length; i++) {
+        result += String.fromCharCode(str.charCodeAt(i) ^ keyStr.charCodeAt(i % keyStr.length));
+      }
+      return result;
+    }
+
+    // --- Encryption Logic ---
+    const encFileInput = document.getElementById("encFileInput");
+    encFileInput.addEventListener("click", () => encFileInput.value = null);
+    encFileInput.addEventListener("change", e => { if (e.target.files[0]) handleImageFile(e.target.files[0]); });
+
+    const encDropZone = document.getElementById("encDropZone");
+    encDropZone.addEventListener('dragover', e => { e.preventDefault(); encDropZone.classList.add('dragover'); });
+    encDropZone.addEventListener('dragleave', () => encDropZone.classList.remove('dragover'));
+    encDropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handleImageFile(file);
+    });
+
+    document.addEventListener("paste", e => {
+      if (document.getElementById("encryptSection").style.display === "block") {
+        const items = e.clipboardData.items;
+        for (let item of items) {
+          if (item.type.indexOf("image") !== -1) handleImageFile(item.getAsFile());
+        }
+      }
+    });
+
+    function handleImageFile(file) {
+      document.getElementById("encFileName").textContent = file.name;
+      // Get name and extension separately
+      const lastDot = file.name.lastIndexOf('.');
+      originalFileName = lastDot !== -1 ? file.name.substring(0, lastDot) : "image";
+      originalExtension = lastDot !== -1 ? file.name.substring(lastDot + 1) : "png";
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        document.getElementById("encPreview").src = reader.result;
+        document.getElementById("encPreview").style.display = "inline-block";
+        base64Data = reader.result.split(",")[1];
+        encDropZone.style.display = "none";
+        document.getElementById("encActions").style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function encryptAndSave() {
+      if (!base64Data) return;
+      const encrypted = xorEncrypt(base64Data, KEY);
+      // Format: [name]_[extension]_[key].txt
+      const fileName = `${originalFileName}_${originalExtension}_${KEY}.txt`;
+      const blob = new Blob([encrypted], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+    }
+
+    // --- Decryption Logic ---
+    const decFileInput = document.getElementById("decFileInput");
+    decFileInput.addEventListener("click", () => decFileInput.value = null);
+    decFileInput.addEventListener("change", e => { if (e.target.files[0]) handleDecFile(e.target.files[0]); });
+
+    const decDropZone = document.getElementById("decDropZone");
+    decDropZone.addEventListener('dragover', e => { e.preventDefault(); decDropZone.classList.add('dragover'); });
+    decDropZone.addEventListener('dragleave', () => decDropZone.classList.remove('dragover'));
+    decDropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) handleDecFile(file);
+    });
+
+    document.getElementById("decPasteBox").addEventListener("input", e => {
+      if (e.target.value.trim().length > 20) {
+        encryptedText = e.target.value.trim();
+        targetDownloadName = "decrypted_image.png";
+        decryptAndPreview();
+      }
+    });
+
+    function handleDecFile(file) {
+      document.getElementById("decFileName").textContent = file.name;
+      
+      // Parse target name: filename_ext_key.txt -> filename.ext
+      let raw = file.name.replace('.txt', '');
+      let parts = raw.split('_');
+      if (parts.length >= 3) {
+          parts.pop(); // remove key
+          let ext = parts.pop(); // remove extension
+          targetDownloadName = `${parts.join('_')}.${ext}`;
+      } else {
+          targetDownloadName = file.name.replace('.txt', '.png');
+      }
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        encryptedText = e.target.result;
+        decryptAndPreview();
+      };
+      reader.readAsText(file);
+    }
+
+    function decryptAndPreview() {
+      try {
+        if (!encryptedText) return;
+        const decryptedBase64 = xorEncrypt(encryptedText, KEY);
+        if (decryptedBase64.length < 100) throw new Error("Invalid content for decryption.");
+
+        const preview = document.getElementById("decPreview");
+        preview.src = `data:image/png;base64,${decryptedBase64}`;
+        
+        document.getElementById("decryptSection").style.display = "none";
+        document.getElementById("decResult").style.display = "block";
+        document.getElementById("errorMsg").textContent = "";
+      } catch (err) {
+        document.getElementById("errorMsg").textContent = "Decryption Failed: Check your key or file.";
+      }
+    }
+
+    function downloadDecryptedImage() {
+      const a = document.createElement("a");
+      a.href = document.getElementById("decPreview").src;
+      a.download = targetDownloadName;
+      a.click();
+    }
+  </script>
+</body>
+</html>    }
     .modal-content {
       background: var(--card-bg); border: 1px solid var(--border-color);
       padding: 40px; border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
