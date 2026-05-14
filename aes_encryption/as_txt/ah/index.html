@@ -9,7 +9,6 @@
       --bg-color: #0b0b0b;
       --card-bg: #1e1e1e;
       --accent-blue: #0078d4;
-      --accent-hover: #005a9e;
       --text-main: #ffffff;
       --text-dim: #a1a1a1;
       --border-color: #333333;
@@ -17,24 +16,275 @@
     }
 
     body { 
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
       margin: 0; background-color: var(--bg-color); color: var(--text-main);
       display: flex; flex-direction: column; align-items: center;
       min-height: 100vh; padding: 40px 20px; box-sizing: border-box;
     }
 
-    h1 { 
-      font-weight: 600; letter-spacing: -0.5px; margin-bottom: 20px;
-      background: linear-gradient(90deg, #fff, #888);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
+    h1 { font-weight: 600; margin-bottom: 20px; background: linear-gradient(90deg, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
     #keyModal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.95); display: flex; align-items: center;
+      background: rgba(0,0,0,0.9); display: flex; align-items: center;
       justify-content: center; z-index: 1000; display: none;
     }
     .modal-content {
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 40px; border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
+    }
+    .modal-content input {
+      background: #121212; border: 1px solid var(--border-color);
+      color: white; padding: 12px; border-radius: 8px; width: 100%;
+      font-size: 1.2rem; text-align: center; margin: 20px 0; box-sizing: border-box;
+    }
+
+    .toggle-buttons { 
+      background: var(--card-bg); padding: 6px; border-radius: 12px;
+      border: 1px solid var(--border-color); margin-bottom: 30px;
+      display: flex; gap: 5px;
+    }
+    .toggle-buttons button {
+      background: transparent; border: none; color: var(--text-dim);
+      padding: 10px 24px; cursor: pointer; border-radius: 8px;
+      font-weight: 500; transition: 0.2s;
+    }
+    .toggle-buttons button.active { background: var(--accent-blue); color: white; }
+
+    .section { 
+      background: var(--card-bg); border: 1px solid var(--border-color);
+      padding: 30px; border-radius: 16px; width: 100%; max-width: 600px;
+      display: none; box-sizing: border-box;
+    }
+
+    .drop-zone {
+      border: 2px dashed #444; padding: 40px 20px; text-align: center;
+      cursor: pointer; background: #252525; border-radius: 12px;
+    }
+    .drop-zone.dragover { border-color: var(--accent-blue); background: #2a2a2a; }
+
+    .custom-file-btn { background: #333; color: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; display: inline-block; margin-bottom: 10px; }
+    .file-name-display { font-size: 0.85rem; color: var(--accent-blue); margin-bottom: 10px; }
+
+    textarea { 
+      width: 100%; height: 80px; margin-top: 15px; background: #121212;
+      border: 1px solid var(--border-color); border-radius: 8px; color: #00ff41;
+      padding: 12px; font-family: monospace; box-sizing: border-box; resize: none;
+    }
+
+    button { background: var(--accent-blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: #333; }
+    
+    img { max-width: 100%; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color); display: none; }
+    #errorMsg { color: var(--error-red); margin-top: 15px; text-align: center; }
+
+    #decResult {
+        text-align: center; width: 100%; max-width: 600px;
+        background: var(--card-bg); border: 1px solid var(--border-color);
+        padding: 30px; border-radius: 16px; box-sizing: border-box; display: none;
+    }
+    
+    .button-group { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <div id="keyModal">
+    <div class="modal-content">
+      <h2>Enter Security Key</h2>
+      <input type="number" id="modalKeyInput" placeholder="Enter 3-5 digits">
+      <button onclick="setKeyFromModal()" style="width: 100%">Continue</button>
+      <p id="modalError" style="color: var(--error-red); font-size: 0.8rem; margin-top: 10px;"></p>
+    </div>
+  </div>
+
+  <h1>Vault Crypt</h1>
+  <div style="margin-bottom: 15px; font-size: 0.8rem; color: var(--text-dim);" id="activeKeyDisplay">Key: ...</div>
+
+  <div class="toggle-buttons">
+    <button id="btn-enc" onclick="uiShowSection('encrypt')">Encrypt</button>
+    <button id="btn-dec" onclick="uiShowSection('decrypt')">Decrypt</button>
+  </div>
+
+  <!-- ENCRYPTION SECTION -->
+  <div class="section" id="encryptSection">
+    <div class="drop-zone" id="encDropZone">
+      <p style="color: var(--text-dim);">Select an Image</p>
+      <label for="encFileInput" class="custom-file-btn">Choose Image</label>
+      <input type="file" id="encFileInput" accept="image/*" style="display: none;">
+      <div id="encFileName" class="file-name-display"></div>
+      <textarea id="encPasteBox" placeholder="Or paste Base64 data..."></textarea>
+    </div>
+    <center><img id="encPreview"></center>
+    <div id="encActions" style="display: none;" class="button-group">
+      <button onclick="encryptAndSave()">Encrypt & Download .txt</button>
+      <button class="btn-secondary" onclick="resetApp()">Reset</button>
+    </div>
+  </div>
+
+  <!-- DECRYPTION SECTION -->
+  <div class="section" id="decryptSection">
+    <div class="drop-zone" id="decDropZone">
+      <p style="color: var(--text-dim);">Select a .txt file</p>
+      <label for="decFileInput" class="custom-file-btn">Choose .TXT File</label>
+      <input type="file" id="decFileInput" accept=".txt" style="display: none;">
+      <div id="decFileName" class="file-name-display"></div>
+      <textarea id="decPasteBox" placeholder="Or paste encrypted text..."></textarea>
+    </div>
+    <div id="errorMsg"></div>
+  </div>
+
+  <!-- DECRYPTION RESULT -->
+  <div id="decResult">
+    <img id="decPreview" style="display: block; margin: 0 auto;">
+    <div class="button-group">
+      <button onclick="downloadDecryptedImage()">Download Image</button>
+      <button class="btn-secondary" onclick="resetApp()">Start Over</button>
+    </div>
+  </div>
+
+  <script>
+    let KEY = ""; 
+    let base64Data = null;
+    let encryptedText = null;
+    let originalFileName = "image";
+    let originalExtension = "png";
+    let targetDownloadName = "decrypted.png";
+
+    // --- Core Startup ---
+    window.onload = () => {
+      const urlKey = new URLSearchParams(window.location.search).get('key');
+      if (urlKey && urlKey.length >= 3 && urlKey.length <= 5) {
+        KEY = urlKey;
+        document.getElementById("activeKeyDisplay").textContent = `Active Key: ${KEY}`;
+        uiShowSection("decrypt");
+      } else {
+        document.getElementById("keyModal").style.display = "flex";
+      }
+    };
+
+    function setKeyFromModal() {
+      const val = document.getElementById("modalKeyInput").value;
+      if (val.length >= 3 && val.length <= 5) window.location.search = `?key=${val}`;
+      else document.getElementById("modalError").textContent = "Key must be 3-5 digits.";
+    }
+
+    function uiShowSection(s) {
+      document.getElementById("encryptSection").style.display = (s === 'encrypt' ? "block" : "none");
+      document.getElementById("decryptSection").style.display = (s === 'decrypt' ? "block" : "none");
+      document.getElementById("decResult").style.display = "none";
+      document.getElementById('btn-enc').classList.toggle('active', s === 'encrypt');
+      document.getElementById('btn-dec').classList.toggle('active', s === 'decrypt');
+    }
+
+    function resetApp() { location.reload(); }
+
+    function xor(str, k) {
+      let r = "";
+      for (let i = 0; i < str.length; i++) r += String.fromCharCode(str.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+      return r;
+    }
+
+    // --- Encryption Logic ---
+    const encIn = document.getElementById("encFileInput");
+    encIn.addEventListener("click", () => encIn.value = null); // CRITICAL: Reset value so re-selecting same file works
+    encIn.addEventListener("change", e => { if (e.target.files[0]) handleImg(e.target.files[0]); });
+
+    const encDrop = document.getElementById("encDropZone");
+    encDrop.ondragover = e => { e.preventDefault(); encDrop.classList.add('dragover'); };
+    encDrop.ondragleave = () => encDrop.classList.remove('dragover');
+    encDrop.ondrop = e => { e.preventDefault(); handleImg(e.dataTransfer.files[0]); };
+
+    function handleImg(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      document.getElementById("encFileName").textContent = file.name;
+      
+      // Filename Logic: Replace "." with "_" for extension
+      const lastDot = file.name.lastIndexOf('.');
+      originalFileName = (lastDot !== -1) ? file.name.substring(0, lastDot) : "image";
+      originalExtension = (lastDot !== -1) ? file.name.substring(lastDot + 1) : "png";
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const p = document.getElementById("encPreview");
+        p.src = reader.result; p.style.display = "block";
+        base64Data = reader.result.split(",")[1];
+        encDrop.style.display = "none";
+        document.getElementById("encActions").style.display = "flex";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function encryptAndSave() {
+      const encrypted = xor(base64Data, KEY);
+      // STRICT FORMAT: name_ext_key.txt
+      const fileName = `${originalFileName}_${originalExtension}_${KEY}.txt`;
+      const blob = new Blob([encrypted], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+    }
+
+    // --- Decryption Logic ---
+    const decIn = document.getElementById("decFileInput");
+    decIn.addEventListener("click", () => decIn.value = null); // CRITICAL: Reset value
+    decIn.addEventListener("change", e => { if (e.target.files[0]) handleTxt(e.target.files[0]); });
+
+    const decDrop = document.getElementById("decDropZone");
+    decDrop.ondragover = e => { e.preventDefault(); decDrop.classList.add('dragover'); };
+    decDrop.ondrop = e => { e.preventDefault(); handleTxt(e.dataTransfer.files[0]); };
+
+    function handleTxt(file) {
+      if (!file) return;
+      document.getElementById("decFileName").textContent = file.name;
+      
+      // Parse: name_ext_key.txt -> name.ext
+      let name = file.name.replace('.txt', '');
+      let p = name.split('_');
+      if (p.length >= 3) {
+        p.pop(); // remove key
+        let ext = p.pop(); // remove extension
+        targetDownloadName = `${p.join('_')}.${ext}`;
+      } else {
+        targetDownloadName = name + ".png";
+      }
+
+      const reader = new FileReader();
+      reader.onload = e => { encryptedText = e.target.result; doDec(); };
+      reader.readAsText(file);
+    }
+
+    document.getElementById("decPasteBox").oninput = e => {
+      if (e.target.value.length > 50) { encryptedText = e.target.value; targetDownloadName = "pasted_image.png"; doDec(); }
+    };
+
+    function doDec() {
+      try {
+        const dec = xor(encryptedText, KEY);
+        if (dec.length < 50) throw 1;
+        const p = document.getElementById("decPreview");
+        // Ensure image renders as the correct original type
+        const ext = targetDownloadName.split('.').pop().toLowerCase();
+        const mime = (ext === 'jpg' || ext === 'jpeg') ? 'jpeg' : 'png';
+        p.src = `data:image/${mime};base64,${dec}`;
+        
+        document.getElementById("decryptSection").style.display = "none";
+        document.getElementById("decResult").style.display = "block";
+      } catch (e) {
+        document.getElementById("errorMsg").textContent = "Invalid file or key.";
+      }
+    }
+
+    function downloadDecryptedImage() {
+      const a = document.createElement("a");
+      a.href = document.getElementById("decPreview").src;
+      a.download = targetDownloadName;
+      a.click();
+    }
+  </script>
+</body>
+</html>    .modal-content {
       background: var(--card-bg); border: 1px solid var(--border-color);
       padding: 40px; border-radius: 16px; text-align: center; width: 90%; max-width: 400px;
     }
