@@ -20,19 +20,19 @@
       font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
       margin: 0; background-color: var(--bg-color); color: var(--text-main);
       display: flex; flex-direction: column; align-items: center;
-      min-height: 100vh; padding: 40px 20px;
+      min-height: 100vh; padding: 40px 20px; box-sizing: border-box;
     }
 
     h1 { 
-      font-weight: 600; letter-spacing: -0.5px; margin-bottom: 30px;
+      font-weight: 600; letter-spacing: -0.5px; margin-bottom: 20px;
       background: linear-gradient(90deg, #fff, #888);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
 
-    /* Modal Styling */
+    /* Key Entry Modal */
     #keyModal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.9); display: flex; align-items: center;
+      background: rgba(0,0,0,0.95); display: flex; align-items: center;
       justify-content: center; z-index: 1000; display: none;
     }
     .modal-content {
@@ -45,10 +45,11 @@
       font-size: 1.2rem; text-align: center; margin: 20px 0; box-sizing: border-box;
     }
 
-    /* Sections */
+    /* Toggle Buttons */
     .toggle-buttons { 
       background: var(--card-bg); padding: 6px; border-radius: 12px;
       border: 1px solid var(--border-color); margin-bottom: 30px;
+      display: flex; gap: 5px;
     }
     .toggle-buttons button {
       background: transparent; border: none; color: var(--text-dim);
@@ -57,35 +58,44 @@
     }
     .toggle-buttons button.active { background: var(--accent-blue); color: white; }
 
+    /* Main Section Containers */
     .section { 
       background: var(--card-bg); border: 1px solid var(--border-color);
       padding: 30px; border-radius: 16px; width: 100%; max-width: 600px;
-      display: none; animation: fadeIn 0.3s ease;
+      display: none; box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
-
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     .drop-zone {
       border: 2px dashed #444; padding: 40px 20px; text-align: center;
       cursor: pointer; background: #252525; border-radius: 12px;
+      transition: all 0.3s ease;
     }
+    .drop-zone.dragover { border-color: var(--accent-blue); background: #2a2a2a; }
 
     .file-upload-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; }
     .custom-file-btn { background: #333; color: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-    .file-name-display { font-size: 0.85rem; color: var(--accent-blue); font-style: italic; }
+    .file-name-display { font-size: 0.85rem; color: var(--accent-blue); font-style: italic; min-height: 1.2rem; }
 
     textarea { 
       width: 100%; height: 100px; margin-top: 15px; background: #121212;
       border: 1px solid var(--border-color); border-radius: 8px; color: #00ff41;
-      padding: 12px; font-family: 'Courier New', monospace; box-sizing: border-box;
+      padding: 12px; font-family: 'Courier New', monospace; box-sizing: border-box; resize: none;
     }
 
     button { background: var(--accent-blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .btn-secondary { background: #333; border: 1px solid var(--border-color); }
     
     img { max-width: 100%; border-radius: 12px; margin-top: 20px; border: 1px solid var(--border-color); display: none; }
-    #errorMsg { color: var(--error-red); font-weight: 500; margin-top: 15px; text-align: center;}
-    .key-indicator { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px; }
+    
+    #errorMsg { color: var(--error-red); font-weight: 500; margin-top: 15px; text-align: center; width: 100%;}
+    .key-indicator { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 15px; }
+
+    #decResult {
+        text-align: center; width: 100%; max-width: 600px;
+        background: var(--card-bg); border: 1px solid var(--border-color);
+        padding: 30px; border-radius: 16px; box-sizing: border-box; display: none;
+    }
   </style>
 </head>
 <body>
@@ -93,9 +103,9 @@
   <!-- Key Entry Modal -->
   <div id="keyModal">
     <div class="modal-content">
-      <h2>Enter Security Key</h2>
-      <p style="color: var(--text-dim)">Set a 3 to 5 digit key to proceed</p>
-      <input type="number" id="modalKeyInput" placeholder="e.g. 123" min="100" max="99999">
+      <h2 style="margin-top:0">Enter Security Key</h2>
+      <p style="color: var(--text-dim)">Please enter a 3 to 5 digit key</p>
+      <input type="number" id="modalKeyInput" placeholder="000" min="100" max="99999">
       <button onclick="setKeyFromModal()" style="width: 100%">Continue</button>
       <p id="modalError" style="color: var(--error-red); font-size: 0.8rem; margin-top: 10px;"></p>
     </div>
@@ -104,33 +114,37 @@
   <h1>Vault Crypt</h1>
   <div class="key-indicator" id="activeKeyDisplay">Key: Loading...</div>
 
-  <div class="toggle-buttons">
+  <div class="toggle-buttons" id="navButtons">
     <button id="btn-enc" onclick="uiShowSection('encrypt')">Encrypt Image</button>
     <button id="btn-dec" onclick="uiShowSection('decrypt')">Decrypt Text</button>
   </div>
 
+  <!-- Encryption Section -->
   <div class="section" id="encryptSection">
-    <h2>Secure Encryption</h2>
+    <h2 style="margin-top:0; font-size: 1.2rem; color: var(--text-dim);">Secure Encryption</h2>
     <div class="drop-zone" id="encDropZone">
-      <p>Drag image here or click to browse</p>
+      <p style="margin:0 0 20px 0; color: var(--text-dim);">Drag image here / Click to browse / Paste from clipboard</p>
       <div class="file-upload-wrapper">
         <label for="encFileInput" class="custom-file-btn">Choose Image File</label>
         <input type="file" id="encFileInput" accept="image/*" style="display: none;">
         <div id="encFileName" class="file-name-display"></div>
       </div>
-      <textarea id="encPasteBox" placeholder="Or paste image data here..."></textarea>
+      <textarea id="encPasteBox" placeholder="Optional: Paste Base64 image data here..."></textarea>
     </div>
-    <img id="encPreview">
-    <div id="encActions" style="display: none;">
+    <div id="encPreviewContainer" style="text-align: center;">
+        <img id="encPreview">
+    </div>
+    <div id="encActions" style="display: none; text-align: center; margin-top: 20px;">
       <button onclick="encryptAndSave()">Encrypt & Download</button>
       <button class="btn-secondary" onclick="resetApp()">Reset</button>
     </div>
   </div>
 
+  <!-- Decryption Section -->
   <div class="section" id="decryptSection">
-    <h2>Secure Decryption</h2>
+    <h2 style="margin-top:0; font-size: 1.2rem; color: var(--text-dim);">Secure Decryption</h2>
     <div class="drop-zone" id="decDropZone">
-      <p>Drop your .TXT file here</p>
+      <p style="margin:0 0 20px 0; color: var(--text-dim);">Drop your .TXT file here or browse</p>
       <div class="file-upload-wrapper">
         <label for="decFileInput" class="custom-file-btn">Choose .TXT File</label>
         <input type="file" id="decFileInput" accept=".txt" style="display: none;">
@@ -141,9 +155,10 @@
     <div id="errorMsg"></div>
   </div>
 
-  <div id="decResult" style="display:none; background: var(--card-bg); border: 1px solid var(--border-color); padding: 30px; border-radius: 16px; max-width: 600px; width: 100%; text-align: center;">
-    <h2>Decrypted Result</h2>
-    <img id="decPreview">
+  <!-- Decryption Result -->
+  <div id="decResult">
+    <h2 style="margin-top:0; font-size: 1.2rem; color: var(--text-dim);">Decrypted Image</h2>
+    <img id="decPreview" style="display: block; margin: 20px auto;">
     <div style="margin-top:20px">
       <button class="btn-secondary" onclick="resetApp()">Process Another</button>
     </div>
@@ -153,15 +168,15 @@
     let KEY = ""; 
     let base64Data = null;
     let encryptedText = null;
-    let originalFileName = null;
-    let originalExtension = null;
+    let originalFileName = "image";
+    let originalExtension = "png";
 
-    // --- Key Initialization Logic ---
+    // --- Key Initialization ---
     window.onload = function() {
       const urlParams = new URLSearchParams(window.location.search);
       const urlKey = urlParams.get('key');
 
-      if (urlKey && urlKey.length >= 3 && urlKey.length <= 5 && !isNaN(urlKey)) {
+      if (urlKey && urlKey.length >= 3 && urlKey.length <= 5) {
         KEY = urlKey;
         document.getElementById("activeKeyDisplay").textContent = `Active Key: ${KEY}`;
         uiShowSection("decrypt");
@@ -172,40 +187,43 @@
 
     function setKeyFromModal() {
       const val = document.getElementById("modalKeyInput").value;
-      const err = document.getElementById("modalError");
-      
       if (val.length >= 3 && val.length <= 5) {
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?key=' + val;
-        window.location.href = newUrl;
+        window.location.search = `?key=${val}`;
       } else {
-        err.textContent = "Key must be between 3 and 5 digits.";
+        document.getElementById("modalError").textContent = "Key must be 3-5 digits.";
       }
     }
 
+    // --- UI Management ---
     function uiShowSection(section) {
-      document.getElementById("encryptSection").style.display = (section === "encrypt") ? "block" : "none";
-      document.getElementById("decryptSection").style.display = (section === "decrypt") ? "block" : "none";
+      // Clear display first to prevent overlaps
+      document.getElementById("encryptSection").style.display = "none";
+      document.getElementById("decryptSection").style.display = "none";
       document.getElementById("decResult").style.display = "none";
+      
+      if (section === 'encrypt') {
+          document.getElementById("encryptSection").style.display = "block";
+      } else {
+          document.getElementById("decryptSection").style.display = "block";
+      }
+
       document.getElementById('btn-enc').classList.toggle('active', section === 'encrypt');
       document.getElementById('btn-dec').classList.toggle('active', section === 'decrypt');
-      document.getElementById("errorMsg").textContent = "";
     }
 
     function resetApp() {
-      base64Data = null; encryptedText = null; originalFileName = null; originalExtension = null;
-      document.getElementById('encFileInput').value = '';
-      document.getElementById('decFileInput').value = '';
-      document.getElementById('encPasteBox').value = '';
-      document.getElementById('decPasteBox').value = '';
-      document.getElementById('encFileName').textContent = '';
-      document.getElementById('decFileName').textContent = '';
-      document.getElementById('encPreview').style.display = 'none';
-      document.getElementById('decPreview').style.display = 'none';
+      base64Data = null; encryptedText = null;
+      document.querySelectorAll('input').forEach(i => i.value = '');
+      document.querySelectorAll('textarea').forEach(t => t.value = '');
+      document.querySelectorAll('.file-name-display').forEach(d => d.textContent = '');
+      document.querySelectorAll('img').forEach(img => { img.src = ''; img.style.display = 'none'; });
+      
       document.getElementById('encDropZone').style.display = 'block';
       document.getElementById('encActions').style.display = 'none';
-      document.getElementById('decResult').style.display = 'none';
-      document.getElementById('decryptSection').style.display = 'block';
       document.getElementById('errorMsg').textContent = '';
+      
+      const activeTab = document.getElementById('btn-enc').classList.contains('active') ? 'encrypt' : 'decrypt';
+      uiShowSection(activeTab);
     }
 
     function xorEncrypt(str, keyStr) {
@@ -216,79 +234,111 @@
       return result;
     }
 
-    // --- Encryption Section ---
+    // --- Encryption Logic ---
+    const encDropZone = document.getElementById("encDropZone");
+
+    // Drag and Drop Listeners
+    ['dragenter', 'dragover'].forEach(name => {
+        encDropZone.addEventListener(name, e => { e.preventDefault(); encDropZone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+        encDropZone.addEventListener(name, e => { e.preventDefault(); encDropZone.classList.remove('dragover'); });
+    });
+    encDropZone.addEventListener('drop', e => {
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) handleImageFile(file);
+    });
+
     document.getElementById("encFileInput").addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (file) handleImageFile(file);
+      if (e.target.files[0]) handleImageFile(e.target.files[0]);
+    });
+
+    // Clipboard Paste Listener
+    document.addEventListener("paste", e => {
+      // Only handle if we are in encryption section
+      if (document.getElementById("encryptSection").style.display === "block") {
+          const items = e.clipboardData.items;
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+              handleImageFile(items[i].getAsFile());
+              break;
+            }
+          }
+      }
     });
 
     function handleImageFile(file) {
-      document.getElementById("encFileName").textContent = file.name;
-      // Extract file name and extension
-      const lastDot = file.name.lastIndexOf('.');
-      originalFileName = file.name.substring(0, lastDot);
-      originalExtension = file.name.substring(lastDot + 1);
+      document.getElementById("encFileName").textContent = file.name || "pasted_image";
+      const lastDot = file.name ? file.name.lastIndexOf('.') : -1;
+      originalFileName = lastDot !== -1 ? file.name.substring(0, lastDot) : "image";
+      originalExtension = lastDot !== -1 ? file.name.substring(lastDot + 1) : "png";
 
       const reader = new FileReader();
       reader.onload = function() {
         const preview = document.getElementById("encPreview");
         preview.src = reader.result;
-        preview.style.display = "block";
+        preview.style.display = "inline-block";
         base64Data = reader.result.split(",")[1];
-        document.getElementById("encDropZone").style.display = "none";
+        encDropZone.style.display = "none";
         document.getElementById("encActions").style.display = "block";
       };
       reader.readAsDataURL(file);
     }
 
     function encryptAndSave() {
-      if (!base64Data) return alert("No image loaded!");
-      encryptedText = xorEncrypt(base64Data, KEY);
-      // New format: [Name]_[Extension]_[Key].txt
+      if (!base64Data) return;
+      const encrypted = xorEncrypt(base64Data, KEY);
       const fileName = `${originalFileName}_${originalExtension}_${KEY}.txt`;
-      
-      const blob = new Blob([encryptedText], { type: "text/plain" });
+      const blob = new Blob([encrypted], { type: "text/plain" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
       a.click();
     }
 
-    // --- Decryption Section ---
+    // --- Decryption Logic ---
+    const decDropZone = document.getElementById("decDropZone");
+    
+    decDropZone.addEventListener('dragover', e => { e.preventDefault(); decDropZone.classList.add('dragover'); });
+    decDropZone.addEventListener('dragleave', () => decDropZone.classList.remove('dragover'));
+    decDropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file) handleDecFile(file);
+    });
+
     document.getElementById("decFileInput").addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (file) {
-        document.getElementById("decFileName").textContent = file.name;
-        const reader = new FileReader();
-        reader.onload = function() {
-          encryptedText = reader.result;
-          decryptAndPreview();
-        };
-        reader.readAsText(file);
-      }
+      if (e.target.files[0]) handleDecFile(e.target.files[0]);
     });
 
     document.getElementById("decPasteBox").addEventListener("input", e => {
-      const pasted = e.target.value.trim();
-      if (pasted.length > 10) {
-        encryptedText = pasted;
+      if (e.target.value.trim().length > 10) {
+        encryptedText = e.target.value.trim();
         decryptAndPreview();
       }
     });
 
+    function handleDecFile(file) {
+        document.getElementById("decFileName").textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = e => {
+            encryptedText = e.target.result;
+            decryptAndPreview();
+        };
+        reader.readAsText(file);
+    }
+
     function decryptAndPreview() {
       try {
-        if (!encryptedText) throw new Error("No text provided");
         const decryptedBase64 = xorEncrypt(encryptedText, KEY);
-        if (!decryptedBase64 || decryptedBase64.length < 10) throw new Error("Decryption failed. Wrong key or corrupted data.");
+        if (decryptedBase64.length < 50) throw new Error("Decryption failed. Invalid Key or Content.");
 
         const preview = document.getElementById("decPreview");
-        // We try to render it. Note: Base64 usually contains the type or we default to png
         preview.src = "data:image/png;base64," + decryptedBase64;
-        preview.style.display = "block";
         
         document.getElementById("decryptSection").style.display = "none";
         document.getElementById("decResult").style.display = "block";
+        document.getElementById("errorMsg").textContent = "";
       } catch (err) {
         document.getElementById("errorMsg").textContent = err.message;
       }
