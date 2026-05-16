@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Encryptor (AES-GCM)</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background: #f9f9f9; color: #333; max-width: 800px; }
+    h1 { color: #2c3e50; }
+    p { color: #555; }
+    .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .drop-zone { border: 2px dashed #3498db; padding: 40px; text-align: center; background: #f7f9fa; cursor: pointer; border-radius: 6px; transition: background 0.3s; }
+    .drop-zone.hover { background: #e8f4fd; border-color: #2980b9; }
+    button { background: #e74c3c; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; margin-top: 15px; width: 100%; font-weight: bold; }
+    button:hover { background: #c0392b; }
+    button:disabled { background: #bdc3c7; cursor: not-allowed; }
+    .progress-bar { width: 100%; background-color: #e0e0e0; padding: 3px; border-radius: 3px; box-shadow: inset 0 1px 3px rgba(0,0,0,.2); margin-top: 15px; display: none; }
+    .progress-bar-fill { height: 15px; display: block; background-color: #2ecc71; width: 0%; border-radius: 4px; transition: width 0.1s ease; }
+    .status { font-weight: bold; margin-top: 10px; color: #7f8c8d; text-align: center; }
+    .file-info { margin-top: 10px; font-size: 1em; color: #333; font-weight: bold; text-align: center; }
+    .error-text { color: #e74c3c; }
+  </style>
+</head>
+<body>
+
+  <h1>Secure Video Encryptor</h1>
+  <p>Select a large video file. It will be encrypted locally in chunks and downloaded as a secure <strong>.bin</strong> file.</p>
+
+  <div class="section">
+    <div id="dropZone" class="drop-zone">
+      <span style="font-size: 1.2em; display: block; margin-bottom: 10px;">📁 Drag & Drop a video file here</span>
+      <span style="font-size: 0.9em; color: #7f8c8d;">or click to browse your device</span>
+      <input type="file" id="fileInput" accept="video/*" style="display: none;">
+    </div>
+    
+    <div id="fileInfo" class="file-info"></div>
+    
+    <button id="encryptBtn" onclick="encryptVideo()" disabled>Encrypt & Download</button>
+    
+    <div id="progressContainer" class="progress-bar">
+      <span id="progressBar" class="progress-bar-fill"></span>
+    </div>
+    
+    <div id="status" class="status"></div>
+  </div>
+
+<script>
+let cryptoKey;
+const CHUNK_SIZE = 1024 * 1024; // Process in 1MB chunks to prevent memory crashes
+
+// Initialize the AES-GCM Key
+async function initKey() {
+  const keyString = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+  let keyBytes = new TextEncoder().encode(keyString);
+
+  if (keyBytes.length < 32) {
+    const padded = new Uint8Array(32);
+    padded.set(keyBytes);
+    keyBytes = padded;
+  } else if (keyBytes.length > 32) {
+    keyBytes = keyBytes.slice(0, 32);
+  }
+
+  cryptoKey = await crypto.subtle.importKey(
+    "raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]
+  );
+}
+initKey();
+
+// Setup UI Interaction (Drag & Drop)
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const fileInfo = document.getElementById("fileInfo");
+const encryptBtn = document.getElementById("encryptBtn");
+
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("hover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("hover"));
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("hover");
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    updateFileDisplay(fileInput.files[0]);
+  }
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) updateFileDisplay(fileInput.files[0]);
+});
+
+function updateFileDisplay(file) {
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  fileInfo.textContent = `Ready: ${file.name} (${sizeMB} MB)`;
+  encryptBtn.disabled = false;
+  document.getElementById("status").textContent = "";
+  document.getElementById("status").classList.remove("error-text");
+  document.getElementById("progressContainer").style.display = "none";
+}
+
+// Core Encryption Logic
+async function encryptVideo() {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const progressBarContainer = document.getElementById("progressContainer");
+  const progressBar = document.getElementById("progressBar");
+  const status = document.getElementById("status");
+
+  // UI Reset
+  progressBarContainer.style.display = "block";
+  progressBar.style.width = "0%";
+  encryptBtn.disabled = true;
+  status.classList.remove("error-text");
+  status.textContent = "Encrypting... Please do not close this tab.";
+
+  let offset = 0;
+  const totalSize = file.size;
+  const chunks = [];
+
+  try {
+    // Generate a single 12-byte IV for the file and store it first
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    chunks.push(iv); 
+
+    // Stream and Encrypt in Chunks
+    while (offset < totalSize) {
+      const slice = file.slice(offset, offset + CHUNK_SIZE);
+      const chunkBuffer = await slice.arrayBuffer();
+
+      const encryptedChunk = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv }, 
+        cryptoKey, 
+        chunkBuffer
+      );
+
+      chunks.push(new Uint8Array(encryptedChunk));
+      offset += CHUNK_SIZE;
+
+      // Update UI Progress
+      const percent = Math.min(100, Math.floor((offset / totalSize) * 100));
+      progressBar.style.width = percent + "%";
+    }
+
+    // Assembly and Download
+    status.textContent = "Finalizing file...";
+    const finalBlob = new Blob(chunks, { type: "application/octet-stream" });
+    const url = URL.createObjectURL(finalBlob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    
+    // Format filename (e.g., video.mp4 -> video.bin)
+    const originalName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+    a.download = originalName + ".bin";
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    status.textContent = `Success! Encrypted file saved as ${originalName}.bin`;
+
+  } catch (error) {
+    console.error("Encryption Error:", error);
+    status.classList.add("error-text");
+    status.textContent = `Encryption Failed: ${error.message}`;
+  } finally {
+    encryptBtn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
