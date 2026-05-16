@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AES-GCM Video Encryption Demo (Streaming)</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background: #f9f9f9; color: #333; }
+    h1 { color: #2c3e50; }
+    h2 { color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+    .section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .drop-zone { border: 2px dashed #3498db; padding: 30px; text-align: center; background: #f7f9fa; cursor: pointer; border-radius: 6px; transition: background 0.3s; }
+    .drop-zone.hover { background: #e8f4fd; border-color: #2980b9; }
+    button { background: #3498db; color: white; border: none; padding: 10px 18px; font-size: 14px; border-radius: 4px; cursor: pointer; margin-top: 10px; margin-right: 10px; }
+    button:hover { background: #2980b9; }
+    button:disabled { background: #bdc3c7; cursor: not-allowed; }
+    video { max-width: 100%; width: 640px; margin-top: 15px; border-radius: 6px; background: #000; display: block; }
+    .progress-bar { width: 100%; background-color: #e0e0e0; padding: 3px; border-radius: 3px; box-shadow: inset 0 1px 3px rgba(0,0,0,.2); margin-top: 10px; display: none; }
+    .progress-bar-fill { height: 15px; display: block; background-color: #2ecc71; width: 0%; border-radius: 4px; transition: width 0.1s ease; }
+    .status { font-weight: bold; margin-top: 5px; color: #7f8c8d; }
+    .file-info { margin-top: 8px; font-size: 0.9em; color: #555; }
+  </style>
+</head>
+<body>
+
+  <h1>AES-GCM Video Encryption & Decryption</h1>
+  <p>Processes videos locally using chunk streaming to prevent browser crashes.</p>
+
+  <!-- STEP 1: ENCRYPTION -->
+  <div class="section">
+    <h2>Step 1: Encrypt a Video</h2>
+    <div id="encDropZone" class="drop-zone">
+      Drag & Drop a video file here, or click to select
+      <input type="file" id="encFileInput" accept="video/*" style="display: none;">
+    </div>
+    <div id="encFileInfo" class="file-info"></div>
+    <button id="encBtn" onclick="processFile(true)" disabled>Encrypt Video</button>
+    
+    <div id="encProgressContainer" class="progress-bar">
+      <span id="encProgressBar" class="progress-bar-fill"></span>
+    </div>
+    <div id="encStatus" class="status"></div>
+  </div>
+
+  <!-- STEP 2: DECRYPTION -->
+  <div class="section">
+    <h2>Step 2: Decrypt & Play .bin File</h2>
+    <div id="decDropZone" class="drop-zone">
+      Drag & Drop your encrypted .bin file here, or click to select
+      <input type="file" id="decFileInput" accept=".bin" style="display: none;">
+    </div>
+    <div id="decFileInfo" class="file-info"></div>
+    <button id="decBtn" onclick="processFile(false)" disabled>Decrypt & Play</button>
+
+    <div id="decProgressContainer" class="progress-bar">
+      <span id="decProgressBar" class="progress-bar-fill"></span>
+    </div>
+    <div id="decStatus" class="status"></div>
+
+    <video id="videoPlayer" controls></video>
+  </div>
+
+<script>
+let cryptoKey;
+const CHUNK_SIZE = 1024 * 1024; // 1MB chunks processing
+
+// Setup fixed key matching your original configuration
+async function initKey() {
+  const keyString = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+  let keyBytes = new TextEncoder().encode(keyString);
+
+  if (keyBytes.length < 32) {
+    const padded = new Uint8Array(32);
+    padded.set(keyBytes);
+    keyBytes = padded;
+  } else if (keyBytes.length > 32) {
+    keyBytes = keyBytes.slice(0, 32);
+  }
+
+  cryptoKey = await crypto.subtle.importKey(
+    "raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]
+  );
+}
+initKey();
+
+// Setup Drag and Drop Mechanics
+function setupDragAndDrop(zoneId, inputId, infoId, btnId) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const info = document.getElementById(infoId);
+  const btn = document.getElementById(btnId);
+
+  zone.addEventListener("click", () => input.click());
+  zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("hover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("hover"));
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("hover");
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      handleFileSelection(input.files[0], info, btn);
+    }
+  });
+  input.addEventListener("change", () => {
+    if (input.files.length) handleFileSelection(input.files[0], info, btn);
+  });
+}
+
+function handleFileSelection(file, infoElement, buttonElement) {
+  infoElement.textContent = `Selected: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+  buttonElement.disabled = false;
+}
+
+setupDragAndDrop("encDropZone", "encFileInput", "encFileInfo", "encBtn");
+setupDragAndDrop("decDropZone", "decFileInput", "decFileInfo", "decBtn");
+
+// Core Logic to Process Files via Streaming/Chunks
+async function processFile(isEncryption) {
+  const prefix = isEncryption ? "enc" : "dec";
+  const fileInput = document.getElementById(`${prefix}FileInput`);
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const progressBarContainer = document.getElementById(`${prefix}ProgressContainer`);
+  const progressBar = document.getElementById(`${prefix}ProgressBar`);
+  const status = document.getElementById(`${prefix}Status`);
+  const actionBtn = document.getElementById(`${prefix}Btn`);
+
+  progressBarContainer.style.display = "block";
+  actionBtn.disabled = true;
+  status.textContent = isEncryption ? "Encrypting..." : "Decrypting...";
+
+  let offset = 0;
+  const totalSize = file.size;
+  const chunks = [];
+
+  // 12-Byte fixed standard IV length for AES-GCM
+  let iv;
+  if (isEncryption) {
+    iv = crypto.getRandomValues(new Uint8Array(12));
+    // Save IV block at the beginning of the chunks array
+    chunks.push(iv); 
+  } else {
+    // If decrypting, extract the first 12 bytes as the IV from the file
+    const ivBlob = file.slice(0, 12);
+    iv = new Uint8Array(await ivBlob.arrayBuffer());
+    offset = 12; // Move file reader offset past the IV
+  }
+
+  try {
+    while (offset < totalSize) {
+      const slice = file.slice(offset, offset + CHUNK_SIZE);
+      const chunkBuffer = await slice.arrayBuffer();
+
+      let processedChunk;
+      if (isEncryption) {
+        processedChunk = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv }, cryptoKey, chunkBuffer
+        );
+      } else {
+        processedChunk = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv }, cryptoKey, chunkBuffer
+        );
+      }
+
+      chunks.push(new Uint8Array(processedChunk));
+      offset += CHUNK_SIZE;
+
+      // Update progress bar tracking
+      const percent = Math.min(100, Math.floor((offset / totalSize) * 100));
+      progressBar.style.width = percent + "%";
+    }
+
+    // Assemble output
+    const finalBlob = new Blob(chunks, { type: isEncryption ? "application/octet-stream" : "video/mp4" });
+
+    if (isEncryption) {
+      // Package and trigger direct download
+      status.textContent = "Encryption complete! Downloading file...";
+      const url = URL.createObjectURL(finalBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      // Keep original name but strip old extension and add .bin
+      const originalName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      a.download = originalName + ".bin";
+      a.click();
+      URL.revokeObjectURL(url);
+      status.textContent = "Done! Saved as " + originalName + ".bin";
+    } else {
+      // Play decrypted video instantly
+      status.textContent = "Decryption complete! Loading video player...";
+      const videoPlayer = document.getElementById("videoPlayer");
+      videoPlayer.src = URL.createObjectURL(finalBlob);
+      videoPlayer.play();
+      status.textContent = "Playing decrypted video.";
+    }
+
+  } catch (error) {
+    console.error(error);
+    status.textContent = "Error: " + error.message + ". Ensure the file and cryptographic keys are correct.";
+    alert("Operation failed! Check console logs or verify the input parameters.");
+  } finally {
+    actionBtn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
