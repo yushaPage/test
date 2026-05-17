@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private Video Stream</title>
+  <style>
+    /* Dark Cinematic Minimalist Interface */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 800px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .info-text {
+      font-size: 1.1rem;
+      color: #aaaaaa;
+      margin-bottom: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    button {
+      background-color: #ffffff;
+      color: #000000;
+      border: none;
+      padding: 15px 35px;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    button:hover {
+      transform: scale(1.03);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .progress-wrapper {
+      width: 100%;
+      max-width: 400px;
+      display: none;
+      margin-top: 20px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background-color: #222222;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #ffffff;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #666666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    video {
+      width: 100%;
+      max-height: 85vh;
+      border-radius: 4px;
+      display: none;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- UI BEFORE PROCESSING -->
+    <div id="setupUi">
+      <div id="fileInfo" class="info-text">Fetching secure resource configuration...</div>
+      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Download & Play Video</button>
+    </div>
+
+    <!-- LOADING SCREEN -->
+    <div id="progressWrapper" class="progress-wrapper">
+      <div class="progress-bar">
+        <div id="progressBar" class="progress-bar-fill"></div>
+      </div>
+      <div id="status" class="status">Connecting...</div>
+    </div>
+
+    <!-- FINAL VIDEO PLAYER -->
+    <video id="videoPlayer" controls controlsList="nodownload"></video>
+  </div>
+
+<script>
+// Hidden URL Configurations
+const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
+const FIXED_KEY_STRING = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+
+// Cryptographic chunk sizes
+const CHUNK_SIZE = 1024 * 1024; 
+const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + 16; 
+
+let cryptoKey;
+let totalFileBytes = 0;
+
+// Initialize Key & Get Metadata on Page Load
+async function init() {
+  try {
+    // 1. Import Security Key
+    let keyBytes = new TextEncoder().encode(FIXED_KEY_STRING);
+    if (keyBytes.length < 32) {
+      const padded = new Uint8Array(32);
+      padded.set(keyBytes);
+      keyBytes = padded;
+    } else if (keyBytes.length > 32) {
+      keyBytes = keyBytes.slice(0, 32);
+    }
+    cryptoKey = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
+
+    // 2. Query file properties via smart HEAD request (No file downloading happens here)
+    const response = await fetch(FILE_URL, { method: 'HEAD' });
+    if (!response.ok) throw new Error();
+
+    const contentLength = response.headers.get('Content-Length');
+    if (contentLength) {
+      totalFileBytes = parseInt(contentLength, 10);
+      const sizeMB = (totalFileBytes / (1024 * 1024)).toFixed(2);
+      
+      // Update UI with target data properties securely
+      document.getElementById("fileInfo").textContent = `Encrypted Video Asset File (${sizeMB} MB)`;
+      document.getElementById("actionBtn").disabled = false;
+    } else {
+      document.getElementById("fileInfo").textContent = "Encrypted Video Asset File Ready";
+      document.getElementById("actionBtn").disabled = false;
+    }
+  } catch (e) {
+    document.getElementById("fileInfo").textContent = "Error loading secure source. Check network or CORS rules.";
+    document.getElementById("fileInfo").style.color = "#e74c3c";
+  }
+}
+window.onload = init;
+
+// Utility to combine incoming stream chunks
+function appendBuffer(buffer1, buffer2) {
+  const tmp = new Uint8Array(buffer1.length + buffer2.length);
+  tmp.set(buffer1, 0);
+  tmp.set(buffer2, buffer1.length);
+  return tmp;
+}
+
+// Processing Core Engine
+async function fetchAndDecrypt() {
+  const setupUi = document.getElementById("setupUi");
+  const progressWrapper = document.getElementById("progressWrapper");
+  const progressBar = document.getElementById("progressBar");
+  const status = document.getElementById("status");
+  const videoPlayer = document.getElementById("videoPlayer");
+
+  // Switch layouts completely to preserve styling minimalism
+  setupUi.style.display = "none";
+  progressWrapper.style.display = "block";
+  status.textContent = "Initializing stream requests...";
+
+  try {
+    const response = await fetch(FILE_URL);
+    if (!response.ok) throw new Error(`Server returned status: ${response.status}`);
+
+    const reader = response.body.getReader();
+    
+    let loadedBytes = 0;
+    let streamBuffer = new Uint8Array(0);
+    let iv = null;
+    const decryptedChunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (value) {
+        loadedBytes += value.byteLength;
+        streamBuffer = appendBuffer(streamBuffer, value);
+
+        // Extract 12-byte initialization vector block once
+        if (!iv && streamBuffer.length >= 12) {
+          iv = streamBuffer.slice(0, 12);
+          streamBuffer = streamBuffer.slice(12);
+        }
+
+        // Parse aligned cryptographic container chunks sequentially
+        while (iv && streamBuffer.length >= ENCRYPTED_CHUNK_SIZE) {
+          const chunkToDecrypt = streamBuffer.slice(0, ENCRYPTED_CHUNK_SIZE);
+          streamBuffer = streamBuffer.slice(ENCRYPTED_CHUNK_SIZE);
+
+          const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv }, 
+            cryptoKey, 
+            chunkToDecrypt
+          );
+          decryptedChunks.push(new Uint8Array(decryptedBuffer));
+        }
+
+        // Render progress updates
+        if (totalFileBytes) {
+          const percent = Math.min(100, Math.floor((loadedBytes / totalFileBytes) * 100));
+          progressBar.style.width = percent + "%";
+          status.textContent = `Processing Stream: ${percent}%`;
+        } else {
+          status.textContent = `Processing Stream...`;
+        }
+      }
+
+      if (done) break;
+    }
+
+    // Process leftover tail blocks
+    if (streamBuffer.length > 0) {
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv }, 
+        cryptoKey, 
+        streamBuffer
+      );
+      decryptedChunks.push(new Uint8Array(decryptedBuffer));
+    }
+
+    // Assemble blob array, wipe UI objects and mount player node
+    const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
+    const videoUrl = URL.createObjectURL(finalBlob);
+    
+    progressWrapper.style.display = "none";
+    videoPlayer.src = videoUrl;
+    videoPlayer.style.display = "block";
+    videoPlayer.play();
+
+  } catch (error) {
+    console.error(error);
+    progressWrapper.style.display = "none";
+    setupUi.style.display = "block";
+    const info = document.getElementById("fileInfo");
+    info.textContent = `Streaming Failure: ${error.message}`;
+    info.style.color = "#e74c3c";
+    document.getElementById("actionBtn").disabled = true;
+  }
+}
+</script>
+</body>
+</html>
