@@ -36,6 +36,7 @@
       justify-content: center;
       align-items: center;
       box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+      z-index: 20;
     }
 
     .info-text {
@@ -102,17 +103,26 @@
       text-align: center;
     }
 
-    /* Video Player Overrides Box view on finish */
-    video {
+    /* Video Workspace Framework for Variable Zooming */
+    .video-viewport {
       position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      background: #000000;
+      z-index: 10;
+    }
+
+    video {
       width: 100%;
       height: 100%;
-      max-width: 100vw;
-      max-height: 100vh;
       object-fit: contain;
-      display: none;
-      background: #000;
-      z-index: 10;
+      outline: none;
+      transition: transform 0.1s ease-out; /* Smooth zooming action */
     }
   </style>
 </head>
@@ -137,8 +147,10 @@
 
   </div>
 
-  <!-- FINAL FULLSCREEN SCREEN VIDEO PLAYER -->
-  <video id="videoPlayer" controls controlsList="nodownload"></video>
+  <!-- VIDEO VIEWPORT WRAPPER (Handles Canvas Bounds) -->
+  <div id="videoViewport" class="video-viewport">
+    <video id="videoPlayer" controls controlsList="nodownload"></video>
+  </div>
 
 <script>
 // Hidden Assets Configuration
@@ -151,6 +163,12 @@ const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + 16;
 
 let cryptoKey;
 let totalFileBytes = 0;
+
+// Dynamic Scaling Variables
+let currentScale = 1.0; 
+const MIN_SCALE = 0.5;   // Zoom out up to 50% minimum screen boundary
+const MAX_SCALE = 1.0;   // Zoom in up to 100% full screen fit boundary
+const ZOOM_SPEED = 0.05; // Scaling increments per keystroke
 
 // Page Initializer
 async function init() {
@@ -187,6 +205,34 @@ async function init() {
 }
 window.onload = init;
 
+// Zoom Interaction Logic
+function applyZoom(direction) {
+  const video = document.getElementById("videoPlayer");
+  
+  if (direction === 'in') {
+    currentScale = Math.min(MAX_SCALE, currentScale + ZOOM_SPEED);
+  } else if (direction === 'out') {
+    currentScale = Math.max(MIN_SCALE, currentScale - ZOOM_SPEED);
+  }
+  
+  // Transform layout dynamically
+  video.style.transform = `scale(${currentScale})`;
+}
+
+// Bind Keyboard Hotkeys for Zoom Management (+ / -)
+window.addEventListener("keydown", (e) => {
+  // Only handle zoom if the player view is currently active
+  if (document.getElementById("videoViewport").style.display === "flex") {
+    if (e.key === "+" || e.key === "=") {
+      e.preventDefault();
+      applyZoom('in');
+    } else if (e.key === "-") {
+      e.preventDefault();
+      applyZoom('out');
+    }
+  }
+});
+
 // Stream Assembler Worker
 function appendBuffer(buffer1, buffer2) {
   const tmp = new Uint8Array(buffer1.length + buffer2.length);
@@ -202,6 +248,7 @@ async function fetchAndDecrypt() {
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
   const videoPlayer = document.getElementById("videoPlayer");
+  const videoViewport = document.getElementById("videoViewport");
   const interfaceBox = document.getElementById("interfaceBox");
 
   // Toggle layouts inside the box 
@@ -274,8 +321,8 @@ async function fetchAndDecrypt() {
     const videoUrl = URL.createObjectURL(finalBlob);
     
     interfaceBox.style.display = "none"; 
+    videoViewport.style.display = "flex"; 
     videoPlayer.src = videoUrl;
-    videoPlayer.style.display = "block";
     videoPlayer.play();
 
   } catch (error) {
