@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloud Video Decryptor</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background: #f0f2f5; color: #333; max-width: 800px; margin: auto; padding-top: 40px;}
+    h1 { color: #1a252f; text-align: center; }
+    p { color: #555; text-align: center; }
+    .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    
+    .input-group { margin-bottom: 20px; }
+    label { font-weight: bold; font-size: 0.9em; display: block; margin-bottom: 5px; color: #2c3e50;}
+    input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-family: monospace; }
+    
+    button { background: #3498db; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s; }
+    button:hover { background: #2980b9; }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+    
+    .progress-bar { width: 100%; background-color: #e0e0e0; height: 10px; border-radius: 5px; margin-top: 20px; display: none; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background-color: #2ecc71; width: 0%; transition: width 0.2s linear; }
+    
+    .status { font-weight: bold; margin-top: 15px; color: #7f8c8d; text-align: center; font-size: 0.9em; }
+    .error { color: #e74c3c; }
+    
+    video { width: 100%; margin-top: 20px; border-radius: 8px; background: #000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+  </style>
+</head>
+<body>
+
+  <h1>Secure Cloud Video Player</h1>
+  <p>Streams and decrypts AES-GCM encrypted videos directly from URL.</p>
+
+  <div class="card">
+    <div class="input-group">
+      <label for="urlInput">Encrypted .bin File URL:</label>
+      <input type="text" id="urlInput" value="https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339">
+    </div>
+    
+    <button id="playBtn" onclick="fetchAndDecrypt()">Stream & Decrypt Video</button>
+    
+    <div id="progressContainer" class="progress-bar">
+      <div id="progressBar" class="progress-bar-fill"></div>
+    </div>
+    
+    <div id="status" class="status"></div>
+
+    <video id="videoPlayer" controls></video>
+  </div>
+
+<script>
+// Cryptographic Constants from previous encryptions
+const CHUNK_SIZE = 1024 * 1024; // 1MB 
+const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + 16; // 1MB + 16-byte GCM Tag
+const FIXED_KEY_STRING = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+let cryptoKey;
+
+// Utility: Merge two Uint8Arrays
+function appendBuffer(buffer1, buffer2) {
+  const tmp = new Uint8Array(buffer1.length + buffer2.length);
+  tmp.set(buffer1, 0);
+  tmp.set(buffer2, buffer1.length);
+  return tmp;
+}
+
+// Initialize the AES-GCM Key
+async function initKey() {
+  let keyBytes = new TextEncoder().encode(FIXED_KEY_STRING);
+  if (keyBytes.length < 32) {
+    const padded = new Uint8Array(32);
+    padded.set(keyBytes);
+    keyBytes = padded;
+  } else if (keyBytes.length > 32) {
+    keyBytes = keyBytes.slice(0, 32);
+  }
+  cryptoKey = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
+}
+initKey();
+
+async function fetchAndDecrypt() {
+  const url = document.getElementById("urlInput").value.trim();
+  const playBtn = document.getElementById("playBtn");
+  const status = document.getElementById("status");
+  const progressBar = document.getElementById("progressBar");
+  const progressContainer = document.getElementById("progressContainer");
+  const videoPlayer = document.getElementById("videoPlayer");
+
+  if (!url) return alert("Please enter a URL");
+
+  // UI Reset
+  playBtn.disabled = true;
+  videoPlayer.style.display = "none";
+  videoPlayer.src = "";
+  progressContainer.style.display = "block";
+  progressBar.style.width = "0%";
+  status.className = "status";
+  status.textContent = "Connecting to server...";
+
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) throw new Error(`HTTP Error: ${response.status} (Check CORS configuration)`);
+
+    // Stream Reader setup
+    const reader = response.body.getReader();
+    const contentLength = +response.headers.get('Content-Length');
+    
+    let loadedBytes = 0;
+    let streamBuffer = new Uint8Array(0);
+    let iv = null;
+    const decryptedChunks = [];
+
+    status.textContent = "Downloading and decrypting stream...";
+
+    // Read the stream chunk by chunk
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (value) {
+        loadedBytes += value.byteLength;
+        streamBuffer = appendBuffer(streamBuffer, value);
+
+        // 1. Extract the 12-byte IV from the very beginning of the stream
+        if (!iv && streamBuffer.length >= 12) {
+          iv = streamBuffer.slice(0, 12);
+          streamBuffer = streamBuffer.slice(12);
+        }
+
+        // 2. Process complete encrypted chunks on-the-fly
+        while (iv && streamBuffer.length >= ENCRYPTED_CHUNK_SIZE) {
+          const chunkToDecrypt = streamBuffer.slice(0, ENCRYPTED_CHUNK_SIZE);
+          streamBuffer = streamBuffer.slice(ENCRYPTED_CHUNK_SIZE);
+
+          const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv }, 
+            cryptoKey, 
+            chunkToDecrypt
+          );
+          decryptedChunks.push(new Uint8Array(decryptedBuffer));
+        }
+
+        // Update Progress UI
+        if (contentLength) {
+          const percent = Math.min(100, Math.floor((loadedBytes / contentLength) * 100));
+          progressBar.style.width = percent + "%";
+          status.textContent = `Streaming... ${percent}%`;
+        } else {
+          status.textContent = `Streaming... ${(loadedBytes / (1024*1024)).toFixed(2)} MB loaded`;
+        }
+      }
+
+      if (done) break;
+    }
+
+    // 3. Process the final remaining partial block
+    if (streamBuffer.length > 0) {
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv }, 
+        cryptoKey, 
+        streamBuffer
+      );
+      decryptedChunks.push(new Uint8Array(decryptedBuffer));
+    }
+
+    // Assembly and Playback
+    status.textContent = "Compiling video...";
+    const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
+    const videoUrl = URL.createObjectURL(finalBlob);
+    
+    videoPlayer.src = videoUrl;
+    videoPlayer.style.display = "block";
+    videoPlayer.play();
+    
+    status.textContent = "Playback started!";
+    progressBar.style.width = "100%";
+
+  } catch (error) {
+    console.error("Stream Error:", error);
+    status.className = "status error";
+    
+    if (error.message.includes("Failed to fetch")) {
+      status.textContent = "Network Error: ImageKit blocked the request. You must enable CORS in your ImageKit dashboard.";
+    } else if (error.name === "OperationError") {
+      status.textContent = "Decryption Failed: Bad key, corrupted file, or incorrect byte formatting.";
+    } else {
+      status.textContent = `Error: ${error.message}`;
+    }
+  } finally {
+    playBtn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
