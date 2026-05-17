@@ -17,62 +17,74 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      overflow: hidden;
     }
 
-    .container {
-      width: 90%;
-      max-width: 800px;
-      text-align: center;
+    /* Strict 2:3 Aspect Ratio Interface Box */
+    .crypto-box {
+      width: 90vw;
+      max-width: 400px;
+      height: 135vw;
+      max-height: 600px; /* 400px x 600px matches exactly 2:3 */
+      background-color: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      border-radius: 16px;
+      box-sizing: border-box;
+      padding: 40px 30px;
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
+      align-items: center;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
     }
 
     .info-text {
       font-size: 1.1rem;
       color: #aaaaaa;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
       letter-spacing: 0.5px;
+      line-height: 1.5;
+      text-align: center;
     }
 
     button {
       background-color: #ffffff;
       color: #000000;
       border: none;
-      padding: 15px 35px;
+      padding: 16px 35px;
       font-size: 1rem;
       font-weight: 600;
       border-radius: 30px;
       cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
+      transition: transform 0.2s, opacity 0.2s, background-color 0.2s;
       letter-spacing: 0.5px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     button:hover {
-      transform: scale(1.03);
+      transform: scale(1.02);
+      background-color: #e6e6e6;
     }
 
     button:disabled {
-      opacity: 0.5;
+      opacity: 0.3;
       cursor: not-allowed;
       transform: none;
     }
 
     .progress-wrapper {
       width: 100%;
-      max-width: 400px;
       display: none;
-      margin-top: 20px;
     }
 
     .progress-bar {
       width: 100%;
       background-color: #222222;
-      height: 6px;
-      border-radius: 3px;
+      height: 4px;
+      border-radius: 2px;
       overflow: hidden;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
     }
 
     .progress-bar-fill {
@@ -83,28 +95,35 @@
     }
 
     .status {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #666666;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
+      text-align: center;
     }
 
+    /* Video Player Overrides Box view on finish */
     video {
+      position: absolute;
       width: 100%;
-      max-height: 85vh;
-      border-radius: 4px;
+      height: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      object-fit: contain;
       display: none;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
-      outline: none;
+      background: #000;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <!-- THE 2:3 CONTAINER INTERFACE -->
+  <div id="interfaceBox" class="crypto-box">
+    
     <!-- UI BEFORE PROCESSING -->
-    <div id="setupUi">
-      <div id="fileInfo" class="info-text">Fetching secure resource configuration...</div>
+    <div id="setupUi" style="width: 100%; text-align: center;">
+      <div id="fileInfo" class="info-text">Configuring secure channel properties...</div>
       <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Download & Play Video</button>
     </div>
 
@@ -116,26 +135,27 @@
       <div id="status" class="status">Connecting...</div>
     </div>
 
-    <!-- FINAL VIDEO PLAYER -->
-    <video id="videoPlayer" controls controlsList="nodownload"></video>
   </div>
 
+  <!-- FINAL FULLSCREEN SCREEN VIDEO PLAYER -->
+  <video id="videoPlayer" controls controlsList="nodownload"></video>
+
 <script>
-// Hidden URL Configurations
+// Hidden Assets Configuration
 const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
 const FIXED_KEY_STRING = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
 
-// Cryptographic chunk sizes
+// Cryptographic Layout Parameters
 const CHUNK_SIZE = 1024 * 1024; 
 const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + 16; 
 
 let cryptoKey;
 let totalFileBytes = 0;
 
-// Initialize Key & Get Metadata on Page Load
+// Page Initializer
 async function init() {
   try {
-    // 1. Import Security Key
+    // Import WebCrypto Keys
     let keyBytes = new TextEncoder().encode(FIXED_KEY_STRING);
     if (keyBytes.length < 32) {
       const padded = new Uint8Array(32);
@@ -146,7 +166,7 @@ async function init() {
     }
     cryptoKey = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
 
-    // 2. Query file properties via smart HEAD request (No file downloading happens here)
+    // Quietly pull media metadata size (HEAD method reads size instantly without file content download)
     const response = await fetch(FILE_URL, { method: 'HEAD' });
     if (!response.ok) throw new Error();
 
@@ -154,22 +174,20 @@ async function init() {
     if (contentLength) {
       totalFileBytes = parseInt(contentLength, 10);
       const sizeMB = (totalFileBytes / (1024 * 1024)).toFixed(2);
-      
-      // Update UI with target data properties securely
-      document.getElementById("fileInfo").textContent = `Encrypted Video Asset File (${sizeMB} MB)`;
-      document.getElementById("actionBtn").disabled = false;
+      document.getElementById("fileInfo").textContent = `Secure Video Asset\n(${sizeMB} MB)`;
     } else {
-      document.getElementById("fileInfo").textContent = "Encrypted Video Asset File Ready";
-      document.getElementById("actionBtn").disabled = false;
+      document.getElementById("fileInfo").textContent = "Secure Video Asset Ready";
     }
+    document.getElementById("actionBtn").disabled = false;
   } catch (e) {
-    document.getElementById("fileInfo").textContent = "Error loading secure source. Check network or CORS rules.";
-    document.getElementById("fileInfo").style.color = "#e74c3c";
+    const info = document.getElementById("fileInfo");
+    info.textContent = "Configuration error. Check connection limits or CORS rules.";
+    info.style.color = "#e74c3c";
   }
 }
 window.onload = init;
 
-// Utility to combine incoming stream chunks
+// Stream Assembler Worker
 function appendBuffer(buffer1, buffer2) {
   const tmp = new Uint8Array(buffer1.length + buffer2.length);
   tmp.set(buffer1, 0);
@@ -184,15 +202,16 @@ async function fetchAndDecrypt() {
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
   const videoPlayer = document.getElementById("videoPlayer");
+  const interfaceBox = document.getElementById("interfaceBox");
 
-  // Switch layouts completely to preserve styling minimalism
+  // Toggle layouts inside the box 
   setupUi.style.display = "none";
   progressWrapper.style.display = "block";
-  status.textContent = "Initializing stream requests...";
+  status.textContent = "Streaming Connection Initialized...";
 
   try {
     const response = await fetch(FILE_URL);
-    if (!response.ok) throw new Error(`Server returned status: ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const reader = response.body.getReader();
     
@@ -208,13 +227,13 @@ async function fetchAndDecrypt() {
         loadedBytes += value.byteLength;
         streamBuffer = appendBuffer(streamBuffer, value);
 
-        // Extract 12-byte initialization vector block once
+        // Strip initial IV package
         if (!iv && streamBuffer.length >= 12) {
           iv = streamBuffer.slice(0, 12);
           streamBuffer = streamBuffer.slice(12);
         }
 
-        // Parse aligned cryptographic container chunks sequentially
+        // Loop process aligned blocks
         while (iv && streamBuffer.length >= ENCRYPTED_CHUNK_SIZE) {
           const chunkToDecrypt = streamBuffer.slice(0, ENCRYPTED_CHUNK_SIZE);
           streamBuffer = streamBuffer.slice(ENCRYPTED_CHUNK_SIZE);
@@ -227,20 +246,20 @@ async function fetchAndDecrypt() {
           decryptedChunks.push(new Uint8Array(decryptedBuffer));
         }
 
-        // Render progress updates
+        // Render progress calculations
         if (totalFileBytes) {
           const percent = Math.min(100, Math.floor((loadedBytes / totalFileBytes) * 100));
           progressBar.style.width = percent + "%";
-          status.textContent = `Processing Stream: ${percent}%`;
+          status.textContent = `Decrypting: ${percent}%`;
         } else {
-          status.textContent = `Processing Stream...`;
+          status.textContent = `Streaming blocks...`;
         }
       }
 
       if (done) break;
     }
 
-    // Process leftover tail blocks
+    // Process remainder bytes
     if (streamBuffer.length > 0) {
       const decryptedBuffer = await crypto.subtle.decrypt(
         { name: "AES-GCM", iv: iv }, 
@@ -250,11 +269,11 @@ async function fetchAndDecrypt() {
       decryptedChunks.push(new Uint8Array(decryptedBuffer));
     }
 
-    // Assemble blob array, wipe UI objects and mount player node
+    // Mount player and delete control overlay completely
     const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
     const videoUrl = URL.createObjectURL(finalBlob);
     
-    progressWrapper.style.display = "none";
+    interfaceBox.style.display = "none"; 
     videoPlayer.src = videoUrl;
     videoPlayer.style.display = "block";
     videoPlayer.play();
@@ -264,9 +283,8 @@ async function fetchAndDecrypt() {
     progressWrapper.style.display = "none";
     setupUi.style.display = "block";
     const info = document.getElementById("fileInfo");
-    info.textContent = `Streaming Failure: ${error.message}`;
+    info.textContent = `Streaming Error: ${error.message}`;
     info.style.color = "#e74c3c";
-    document.getElementById("actionBtn").disabled = true;
   }
 }
 </script>
