@@ -36,7 +36,6 @@
       justify-content: center;
       align-items: center;
       box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
-      transition: opacity 0.5s ease;
     }
 
     .info-text {
@@ -103,19 +102,6 @@
       letter-spacing: 1.5px;
       text-align: center;
     }
-
-    /* Cinematic Fullscreen Video Player */
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: contain; /* Keeps aspect ratio without stretching */
-      background-color: #000000;
-      display: none;
-      z-index: 9999;
-    }
   </style>
 </head>
 <body>
@@ -139,9 +125,6 @@
 
   </div>
 
-  <!-- THE HIDDEN VIDEO PLAYER -->
-  <video id="videoPlayer" controls controlsList="nodownload"></video>
-
 <script>
 // Hidden Assets Configuration
 const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
@@ -154,7 +137,6 @@ const ENCRYPTED_CHUNK_SIZE = CHUNK_SIZE + 16;
 let cryptoKey;
 let totalFileBytes = 0;
 
-// Page Initializer
 async function init() {
   try {
     let keyBytes = new TextEncoder().encode(FIXED_KEY_STRING);
@@ -194,15 +176,12 @@ function appendBuffer(buffer1, buffer2) {
   return tmp;
 }
 
-// Processing Core Engine
 async function fetchAndDecrypt() {
   const setupUi = document.getElementById("setupUi");
   const progressWrapper = document.getElementById("progressWrapper");
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
   const actionBtn = document.getElementById("actionBtn");
-  const interfaceBox = document.getElementById("interfaceBox");
-  const videoPlayer = document.getElementById("videoPlayer");
 
   setupUi.style.display = "none";
   progressWrapper.style.display = "block";
@@ -256,25 +235,48 @@ async function fetchAndDecrypt() {
       decryptedChunks.push(new Uint8Array(decryptedBuffer));
     }
 
-    // Assign the decrypted memory blob to the hidden video player
-    status.textContent = "Finalizing video...";
+    status.textContent = "Packing external player...";
     const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
-    videoPlayer.src = URL.createObjectURL(finalBlob);
     
-    // Reset interface to show the "Play Video" button
-    progressWrapper.style.display = "none";
-    setupUi.style.display = "block";
-    document.getElementById("fileInfo").textContent = "Decryption Complete.\nYour secure video is ready to play.";
-    
-    actionBtn.textContent = "▶ Play Video";
-    actionBtn.disabled = false;
-    
-    // NEW BEHAVIOR: Instead of a new tab, hide the menu and show the video
-    actionBtn.onclick = function() {
-      interfaceBox.style.display = "none"; // Hide the 2:3 box completely
-      videoPlayer.style.display = "block"; // Show the video player
-      videoPlayer.play();                  // Start playing automatically
-    };
+    // Convert blob into a secure base64 string data URI
+    const readerBase64 = new FileReader();
+    readerBase64.readAsDataURL(finalBlob);
+    readerBase64.onloadend = function() {
+      const base64Data = readerBase64.result;
+
+      // Update the 2:3 UI Box
+      progressWrapper.style.display = "none";
+      setupUi.style.display = "block";
+      document.getElementById("fileInfo").textContent = "Video Decrypted Successfully!";
+      
+      actionBtn.textContent = "▶ Open External Player";
+      actionBtn.disabled = false;
+      
+      // EXPORT LOGIC: Post data into a neutral target player window
+      actionBtn.onclick = function() {
+        const playerWindow = window.open("", "_blank");
+        
+        // Dynamic Player HTML markup inject
+        const playerHTML = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>External Media Stream</title>
+            <style>
+              body, html { margin:0; padding:0; width:100%; height:100%; background:#000; display:flex; justify-content:center; align-items:center; overflow:hidden; }
+              video { width:100vw; height:100vh; object-fit:contain; }
+            </style>
+          </head>
+          <body>
+            <video src="${base64Data}" controls autoplay controlsList="nodownload"></video>
+          </body>
+          </html>
+        `;
+        
+        playerWindow.document.write(playerHTML);
+        playerWindow.document.close();
+      };
+    }
 
   } catch (error) {
     console.error(error);
