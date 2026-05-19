@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Private Video Stream</title>
+  <title>Private Video Decryptor</title>
   <style>
     /* Dark Cinematic Minimalist Interface */
     body, html {
@@ -45,6 +45,7 @@
       letter-spacing: 0.5px;
       line-height: 1.5;
       text-align: center;
+      white-space: pre-line;
     }
 
     button {
@@ -101,19 +102,6 @@
       letter-spacing: 1.5px;
       text-align: center;
     }
-
-    /* Video Player Overrides Box view on finish */
-    video {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      max-width: 100vw;
-      max-height: 100vh;
-      object-fit: contain;
-      display: none;
-      background: #000;
-      z-index: 10;
-    }
   </style>
 </head>
 <body>
@@ -124,7 +112,7 @@
     <!-- UI BEFORE PROCESSING -->
     <div id="setupUi" style="width: 100%; text-align: center;">
       <div id="fileInfo" class="info-text">Configuring secure channel properties...</div>
-      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Download & Play Video</button>
+      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Decrypt & Download Video</button>
     </div>
 
     <!-- LOADING SCREEN -->
@@ -137,13 +125,11 @@
 
   </div>
 
-  <!-- FINAL FULLSCREEN SCREEN VIDEO PLAYER -->
-  <video id="videoPlayer" controls controlsList="nodownload"></video>
-
 <script>
 // Hidden Assets Configuration
 const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
 const FIXED_KEY_STRING = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
+const OUTPUT_FILENAME = "Decrypted_Video.mp4"; // Target output filename
 
 // Cryptographic Layout Parameters
 const CHUNK_SIZE = 1024 * 1024; 
@@ -166,7 +152,7 @@ async function init() {
     }
     cryptoKey = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
 
-    // Quietly pull media metadata size (HEAD method reads size instantly without file content download)
+    // Quietly pull media metadata size via HEAD request
     const response = await fetch(FILE_URL, { method: 'HEAD' });
     if (!response.ok) throw new Error();
 
@@ -201,8 +187,6 @@ async function fetchAndDecrypt() {
   const progressWrapper = document.getElementById("progressWrapper");
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
-  const videoPlayer = document.getElementById("videoPlayer");
-  const interfaceBox = document.getElementById("interfaceBox");
 
   // Toggle layouts inside the box 
   setupUi.style.display = "none";
@@ -269,14 +253,27 @@ async function fetchAndDecrypt() {
       decryptedChunks.push(new Uint8Array(decryptedBuffer));
     }
 
-    // Mount player and delete control overlay completely
+    // Assemble final blob
+    status.textContent = "Saving file...";
     const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
-    const videoUrl = URL.createObjectURL(finalBlob);
+    const downloadUrl = URL.createObjectURL(finalBlob);
     
-    interfaceBox.style.display = "none"; 
-    videoPlayer.src = videoUrl;
-    videoPlayer.style.display = "block";
-    videoPlayer.play();
+    // Create hidden download trigger link
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = OUTPUT_FILENAME;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup reference nodes
+    document.body.removeChild(a);
+    URL.revokeObjectURL(downloadUrl);
+
+    // Reset interface back to starting state gracefully
+    progressWrapper.style.display = "none";
+    setupUi.style.display = "block";
+    document.getElementById("fileInfo").textContent = "Download Completed Successfully.";
+    document.getElementById("actionBtn").disabled = false;
 
   } catch (error) {
     console.error(error);
