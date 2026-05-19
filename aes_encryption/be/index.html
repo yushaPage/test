@@ -109,10 +109,10 @@
   <!-- THE 2:3 CONTAINER INTERFACE -->
   <div id="interfaceBox" class="crypto-box">
     
-    <!-- UI BEFORE PROCESSING -->
+    <!-- UI BEFORE / AFTER PROCESSING -->
     <div id="setupUi" style="width: 100%; text-align: center;">
       <div id="fileInfo" class="info-text">Configuring secure channel properties...</div>
-      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Decrypt & Download Video</button>
+      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Prepare Secure Video</button>
     </div>
 
     <!-- LOADING SCREEN -->
@@ -129,7 +129,6 @@
 // Hidden Assets Configuration
 const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
 const FIXED_KEY_STRING = "1a2aa3aaa4aaaa5aaaaa6aaaaaa7aaaa";
-const OUTPUT_FILENAME = "Decrypted_Video.mp4"; // Target output filename
 
 // Cryptographic Layout Parameters
 const CHUNK_SIZE = 1024 * 1024; 
@@ -187,6 +186,7 @@ async function fetchAndDecrypt() {
   const progressWrapper = document.getElementById("progressWrapper");
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
+  const actionBtn = document.getElementById("actionBtn");
 
   // Toggle layouts inside the box 
   setupUi.style.display = "none";
@@ -254,26 +254,22 @@ async function fetchAndDecrypt() {
     }
 
     // Assemble final blob
-    status.textContent = "Saving file...";
+    status.textContent = "Finalizing video...";
     const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
-    const downloadUrl = URL.createObjectURL(finalBlob);
+    const videoUrl = URL.createObjectURL(finalBlob);
     
-    // Create hidden download trigger link
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = OUTPUT_FILENAME;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Cleanup reference nodes
-    document.body.removeChild(a);
-    URL.revokeObjectURL(downloadUrl);
-
-    // Reset interface back to starting state gracefully
+    // Reset interface to show the "Play in New Tab" button
     progressWrapper.style.display = "none";
     setupUi.style.display = "block";
-    document.getElementById("fileInfo").textContent = "Download Completed Successfully.";
-    document.getElementById("actionBtn").disabled = false;
+    document.getElementById("fileInfo").textContent = "Decryption Complete.\nYour secure video is ready to play.";
+    
+    actionBtn.textContent = "▶ Play in New Tab";
+    actionBtn.disabled = false;
+    
+    // Change the button's click behavior to open the new tab
+    actionBtn.onclick = function() {
+      window.open(videoUrl, '_blank');
+    };
 
   } catch (error) {
     console.error(error);
