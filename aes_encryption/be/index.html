@@ -112,7 +112,7 @@
     <!-- UI BEFORE / AFTER PROCESSING -->
     <div id="setupUi" style="width: 100%; text-align: center;">
       <div id="fileInfo" class="info-text">Configuring properties...</div>
-      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Load Data & Play</button>
+      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Load Data4Play</button>
     </div>
 
     <!-- LOADING SCREEN -->
@@ -249,7 +249,7 @@ async function fetchAndDecrypt() {
       setupUi.style.display = "block";
       document.getElementById("fileInfo").textContent = "Video Decrypted Successfully!";
       
-      actionBtn.textContent = "▶ Open External Player";
+      actionBtn.textContent = "▶ Open Player";
       actionBtn.disabled = false;
       
       // EXPORT LOGIC: Post data into a neutral target player window
