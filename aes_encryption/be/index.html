@@ -111,8 +111,8 @@
     
     <!-- UI BEFORE / AFTER PROCESSING -->
     <div id="setupUi" style="width: 100%; text-align: center;">
-      <div id="fileInfo" class="info-text">Configuring secure channel properties...</div>
-      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Prepare Secure Video</button>
+      <div id="fileInfo" class="info-text">Configuring properties...</div>
+      <button id="actionBtn" onclick="fetchAndDecrypt()" disabled>Load Data & Play</button>
     </div>
 
     <!-- LOADING SCREEN -->
@@ -156,9 +156,9 @@ async function init() {
     if (contentLength) {
       totalFileBytes = parseInt(contentLength, 10);
       const sizeMB = (totalFileBytes / (1024 * 1024)).toFixed(2);
-      document.getElementById("fileInfo").textContent = `Secure Video Asset\n(${sizeMB} MB)`;
+      document.getElementById("fileInfo").textContent = `Encrypted Video Asset\n(${sizeMB} MB)`;
     } else {
-      document.getElementById("fileInfo").textContent = "Secure Video Asset Ready";
+      document.getElementById("fileInfo").textContent = "Video Asset Ready";
     }
     document.getElementById("actionBtn").disabled = false;
   } catch (e) {
