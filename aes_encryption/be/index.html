@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Private Video Decryptor</title>
+  <title>Private Video Stream</title>
   <style>
     /* Dark Cinematic Minimalist Interface */
     body, html {
@@ -25,7 +25,7 @@
       width: 90vw;
       max-width: 400px;
       height: 135vw;
-      max-height: 600px; /* 400px x 600px matches exactly 2:3 */
+      max-height: 600px;
       background-color: #0a0a0a;
       border: 1px solid #1a1a1a;
       border-radius: 16px;
@@ -36,6 +36,7 @@
       justify-content: center;
       align-items: center;
       box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+      transition: opacity 0.5s ease;
     }
 
     .info-text {
@@ -102,6 +103,19 @@
       letter-spacing: 1.5px;
       text-align: center;
     }
+
+    /* Cinematic Fullscreen Video Player */
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain; /* Keeps aspect ratio without stretching */
+      background-color: #000000;
+      display: none;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body>
@@ -125,6 +139,9 @@
 
   </div>
 
+  <!-- THE HIDDEN VIDEO PLAYER -->
+  <video id="videoPlayer" controls controlsList="nodownload"></video>
+
 <script>
 // Hidden Assets Configuration
 const FILE_URL = "https://ik.imagekit.io/on3rlyw36/Yusha_766p.bin?updatedAt=1779028553339";
@@ -140,7 +157,6 @@ let totalFileBytes = 0;
 // Page Initializer
 async function init() {
   try {
-    // Import WebCrypto Keys
     let keyBytes = new TextEncoder().encode(FIXED_KEY_STRING);
     if (keyBytes.length < 32) {
       const padded = new Uint8Array(32);
@@ -151,7 +167,6 @@ async function init() {
     }
     cryptoKey = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
 
-    // Quietly pull media metadata size via HEAD request
     const response = await fetch(FILE_URL, { method: 'HEAD' });
     if (!response.ok) throw new Error();
 
@@ -172,7 +187,6 @@ async function init() {
 }
 window.onload = init;
 
-// Stream Assembler Worker
 function appendBuffer(buffer1, buffer2) {
   const tmp = new Uint8Array(buffer1.length + buffer2.length);
   tmp.set(buffer1, 0);
@@ -187,8 +201,9 @@ async function fetchAndDecrypt() {
   const progressBar = document.getElementById("progressBar");
   const status = document.getElementById("status");
   const actionBtn = document.getElementById("actionBtn");
+  const interfaceBox = document.getElementById("interfaceBox");
+  const videoPlayer = document.getElementById("videoPlayer");
 
-  // Toggle layouts inside the box 
   setupUi.style.display = "none";
   progressWrapper.style.display = "block";
   status.textContent = "Streaming Connection Initialized...";
@@ -198,7 +213,6 @@ async function fetchAndDecrypt() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const reader = response.body.getReader();
-    
     let loadedBytes = 0;
     let streamBuffer = new Uint8Array(0);
     let iv = null;
@@ -206,31 +220,24 @@ async function fetchAndDecrypt() {
 
     while (true) {
       const { done, value } = await reader.read();
-      
       if (value) {
         loadedBytes += value.byteLength;
         streamBuffer = appendBuffer(streamBuffer, value);
 
-        // Strip initial IV package
         if (!iv && streamBuffer.length >= 12) {
           iv = streamBuffer.slice(0, 12);
           streamBuffer = streamBuffer.slice(12);
         }
 
-        // Loop process aligned blocks
         while (iv && streamBuffer.length >= ENCRYPTED_CHUNK_SIZE) {
           const chunkToDecrypt = streamBuffer.slice(0, ENCRYPTED_CHUNK_SIZE);
           streamBuffer = streamBuffer.slice(ENCRYPTED_CHUNK_SIZE);
-
           const decryptedBuffer = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: iv }, 
-            cryptoKey, 
-            chunkToDecrypt
+            { name: "AES-GCM", iv: iv }, cryptoKey, chunkToDecrypt
           );
           decryptedChunks.push(new Uint8Array(decryptedBuffer));
         }
 
-        // Render progress calculations
         if (totalFileBytes) {
           const percent = Math.min(100, Math.floor((loadedBytes / totalFileBytes) * 100));
           progressBar.style.width = percent + "%";
@@ -239,36 +246,34 @@ async function fetchAndDecrypt() {
           status.textContent = `Streaming blocks...`;
         }
       }
-
       if (done) break;
     }
 
-    // Process remainder bytes
     if (streamBuffer.length > 0) {
       const decryptedBuffer = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: iv }, 
-        cryptoKey, 
-        streamBuffer
+        { name: "AES-GCM", iv: iv }, cryptoKey, streamBuffer
       );
       decryptedChunks.push(new Uint8Array(decryptedBuffer));
     }
 
-    // Assemble final blob
+    // Assign the decrypted memory blob to the hidden video player
     status.textContent = "Finalizing video...";
     const finalBlob = new Blob(decryptedChunks, { type: "video/mp4" });
-    const videoUrl = URL.createObjectURL(finalBlob);
+    videoPlayer.src = URL.createObjectURL(finalBlob);
     
-    // Reset interface to show the "Play in New Tab" button
+    // Reset interface to show the "Play Video" button
     progressWrapper.style.display = "none";
     setupUi.style.display = "block";
     document.getElementById("fileInfo").textContent = "Decryption Complete.\nYour secure video is ready to play.";
     
-    actionBtn.textContent = "▶ Play in New Tab";
+    actionBtn.textContent = "▶ Play Video";
     actionBtn.disabled = false;
     
-    // Change the button's click behavior to open the new tab
+    // NEW BEHAVIOR: Instead of a new tab, hide the menu and show the video
     actionBtn.onclick = function() {
-      window.open(videoUrl, '_blank');
+      interfaceBox.style.display = "none"; // Hide the 2:3 box completely
+      videoPlayer.style.display = "block"; // Show the video player
+      videoPlayer.play();                  // Start playing automatically
     };
 
   } catch (error) {
