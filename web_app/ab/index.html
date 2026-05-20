@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Telegram Mini App</title>
+
+<style>
+    body{
+        margin:0;
+        padding:0;
+        background:#0b1220;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        height:100vh;
+        font-family:Arial,sans-serif;
+    }
+
+    button{
+        padding:18px 35px;
+        font-size:22px;
+        border:none;
+        border-radius:14px;
+        background:#1f2937;
+        color:white;
+        cursor:pointer;
+        box-shadow:0 5px 20px rgba(0,0,0,0.4);
+    }
+
+    button:hover{
+        opacity:0.9;
+    }
+</style>
+</head>
+<body>
+
+<button onclick="minimizeApp()">
+    Minimize Web App
+</button>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<script>
+    // Initialize Telegram WebApp
+    const tg = window.Telegram.WebApp;
+
+    tg.ready();
+
+    // Optional: expand app
+    tg.expand();
+
+    function minimizeApp(){
+
+        /*
+        Telegram does NOT provide a direct minimize() method.
+
+        But switching from expanded mode back to normal mode
+        behaves similarly to the down-arrow collapse.
+        */
+
+        tg.isExpanded && tg.close();
+
+        // Alternative:
+        // tg.MainButton.hide();
+
+    }
+</script>
+
+</body>
+</html>
